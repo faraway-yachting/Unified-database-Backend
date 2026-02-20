@@ -1,0 +1,616 @@
+// YachtOS — Database Schema
+// Node.js/Express + Prisma | PostgreSQL
+// All primary keys use UUID v4. Timestamps use timezone-aware DateTime.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============== Module 4 — Pricing & Revenue (referenced early) ==============
+model Currency {
+  code               String   @id @db.VarChar(10) // e.g. USD
+  name               String   @db.VarChar(100)
+  symbol             String   @db.VarChar(10)
+  exchangeRateToUsd  Decimal  @map("exchange_rate_to_usd") @db.Decimal(14, 6)
+  autoUpdate         Boolean  @default(true) @map("auto_update")
+  lastUpdated        DateTime? @map("last_updated") @db.Timestamptz(6)
+
+  regions            Region[]
+  packages           Package[]
+  bookings           Booking[]
+  payments           Payment[]
+
+  @@map("currencies")
+}
+
+// ============== Module 1 — Region & Site Management ==============
+model Region {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @db.VarChar(100)
+  slug            String   @unique @db.VarChar(100)
+  siteUrl         String?  @map("site_url") @db.VarChar(255)
+  country         String   @db.VarChar(100)
+  currencyCode    String   @map("currency_code") @db.VarChar(10)
+  languageCode    String   @default("en") @map("language_code") @db.VarChar(10)
+  contactEmail    String?  @map("contact_email") @db.VarChar(255)
+  contactPhone    String?  @map("contact_phone") @db.VarChar(50)
+  metaTitle       String?  @map("meta_title") @db.VarChar(255)
+  metaDescription String?  @map("meta_description") @db.Text
+  heroImageUrl    String?  @map("hero_image_url") @db.VarChar(500)
+  status          String   @default("draft") @db.VarChar(20) // live | draft
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  currency              Currency               @relation(fields: [currencyCode], references: [code])
+  charterCompanies      CharterCompany[]
+  yachts                Yacht[]
+  packageRegionVisibility PackageRegionVisibility[]
+  pricingRules          PricingRule[]
+  promoCodes            PromoCode[]
+  agents                Agent[]
+  bookings              Booking[]
+  customers             Customer[]
+  leads                 Lead[]
+  adminUserRegionAccess AdminUserRegionAccess[]
+
+  @@map("regions")
+}
+
+model CharterCompany {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(255)
+  logoUrl      String?  @map("logo_url") @db.VarChar(500)
+  regionId     String   @map("region_id") @db.Uuid
+  contactEmail String?  @map("contact_email") @db.VarChar(255)
+  contactPhone String?  @map("contact_phone") @db.VarChar(50)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  region Region @relation(fields: [regionId], references: [id])
+  yachts Yacht[]
+
+  @@map("charter_companies")
+}
+
+// ============== Module 2 — Fleet Management ==============
+model Yacht {
+  id                String   @id @default(uuid()) @db.Uuid
+  companyId         String   @map("company_id") @db.Uuid
+  name              String   @db.VarChar(255)
+  type              String   @db.VarChar(50) // sailboat | motor | catamaran | gulet
+  lengthM           Decimal? @map("length_m") @db.Decimal(6, 2)
+  beamM             Decimal? @map("beam_m") @db.Decimal(6, 2)
+  capacityGuests    Int      @map("capacity_guests")
+  capacityCrew      Int?     @map("capacity_crew")
+  yearBuilt         Int?     @map("year_built")
+  engineType        String?  @map("engine_type") @db.VarChar(100)
+  engineHp          Int?     @map("engine_hp")
+  cruiseSpeedKnots  Decimal? @map("cruise_speed_knots") @db.Decimal(5, 2)
+  fuelCapacityL     Int?     @map("fuel_capacity_l")
+  homePort          String?  @map("home_port") @db.VarChar(255)
+  regionId          String   @map("region_id") @db.Uuid
+  status            String   @default("available") @db.VarChar(30) // available | booked | maintenance | retired
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  company   CharterCompany   @relation(fields: [companyId], references: [id])
+  region    Region           @relation(fields: [regionId], references: [id])
+  images    YachtImage[]
+  amenities YachtAmenity[]
+  documents YachtDocument[]
+  maintenance YachtMaintenance[]
+  availabilityBlocks YachtAvailabilityBlock[]
+  packages  Package[]
+  bookings  Booking[]
+  leads     Lead[]
+
+  @@map("yachts")
+}
+
+model YachtImage {
+  id        String   @id @default(uuid()) @db.Uuid
+  yachtId   String   @map("yacht_id") @db.Uuid
+  imageUrl  String   @map("image_url") @db.VarChar(500)
+  caption   String?  @db.VarChar(255)
+  isCover   Boolean  @default(false) @map("is_cover")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  yacht Yacht @relation(fields: [yachtId], references: [id], onDelete: Cascade)
+
+  @@map("yacht_images")
+}
+
+model YachtAmenity {
+  id          String   @id @default(uuid()) @db.Uuid
+  yachtId     String   @map("yacht_id") @db.Uuid
+  category    String   @db.VarChar(100) // navigation | safety | entertainment | water_sports | comfort
+  name        String   @db.VarChar(255)
+  isAvailable Boolean  @default(true) @map("is_available")
+
+  yacht Yacht @relation(fields: [yachtId], references: [id], onDelete: Cascade)
+
+  @@map("yacht_amenities")
+}
+
+model YachtDocument {
+  id           String    @id @default(uuid()) @db.Uuid
+  yachtId      String    @map("yacht_id") @db.Uuid
+  documentType String    @map("document_type") @db.VarChar(100) // insurance | registration | certificate | inspection
+  documentUrl  String    @map("document_url") @db.VarChar(500)
+  issuedDate   DateTime? @map("issued_date") @db.Date
+  expiryDate   DateTime? @map("expiry_date") @db.Date
+  isExpired    Boolean   @default(false) @map("is_expired")
+  notes        String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  yacht Yacht @relation(fields: [yachtId], references: [id], onDelete: Cascade)
+
+  @@map("yacht_documents")
+}
+
+model YachtMaintenance {
+  id             String    @id @default(uuid()) @db.Uuid
+  yachtId        String    @map("yacht_id") @db.Uuid
+  maintenanceType String   @map("maintenance_type") @db.VarChar(100) // scheduled | emergency | inspection
+  description    String   @db.Text
+  scheduledDate  DateTime  @map("scheduled_date") @db.Date
+  completedDate  DateTime? @map("completed_date") @db.Date
+  status         String   @default("scheduled") @db.VarChar(30) // scheduled | in_progress | completed | overdue
+  cost           Decimal?  @db.Decimal(10, 2)
+  performedBy    String?   @map("performed_by") @db.VarChar(255)
+  notes          String?   @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  yacht Yacht @relation(fields: [yachtId], references: [id], onDelete: Cascade)
+
+  @@map("yacht_maintenance")
+}
+
+model YachtAvailabilityBlock {
+  id        String   @id @default(uuid()) @db.Uuid
+  yachtId   String   @map("yacht_id") @db.Uuid
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  reason    String?  @db.VarChar(100) // blackout | maintenance | private_use
+  notes     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  yacht Yacht @relation(fields: [yachtId], references: [id], onDelete: Cascade)
+
+  @@map("yacht_availability_blocks")
+}
+
+// ============== Module 3 — Package Builder ==============
+model Package {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  yachtId         String?  @map("yacht_id") @db.Uuid
+  yachtCategory   String?  @map("yacht_category") @db.VarChar(100)
+  durationType    String   @map("duration_type") @db.VarChar(30) // half_day | full_day | weekly | custom
+  durationHours   Decimal? @map("duration_hours") @db.Decimal(5, 2)
+  durationDays    Int?     @map("duration_days")
+  basePrice       Decimal  @map("base_price") @db.Decimal(10, 2)
+  currencyCode    String   @map("currency_code") @db.VarChar(10)
+  maxCapacity     Int?     @map("max_capacity")
+  status          String   @default("draft") @db.VarChar(20) // active | draft | archived
+  isFeatured      Boolean  @default(false) @map("is_featured")
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  yacht       Yacht?      @relation(fields: [yachtId], references: [id])
+  currency    Currency    @relation(fields: [currencyCode], references: [code])
+  regionVisibility PackageRegionVisibility[]
+  includedServices PackageIncludedService[]
+  addons      PackageAddon[]
+  media       PackageMedia[]
+  pricingRules PricingRule[]
+  bookings    Booking[]
+  leads       Lead[]
+
+  @@map("packages")
+}
+
+model PackageRegionVisibility {
+  id         String  @id @default(uuid()) @db.Uuid
+  packageId  String  @map("package_id") @db.Uuid
+  regionId   String  @map("region_id") @db.Uuid
+  isVisible  Boolean @default(true) @map("is_visible")
+  sortOrder  Int     @default(0) @map("sort_order")
+
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  region  Region  @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@map("package_region_visibility")
+}
+
+model PackageIncludedService {
+  id          String   @id @default(uuid()) @db.Uuid
+  packageId   String   @map("package_id") @db.Uuid
+  serviceName String   @map("service_name") @db.VarChar(100) // skipper | fuel | catering | transfer | crew | gear
+  isIncluded  Boolean  @default(true) @map("is_included")
+  notes       String?  @db.VarChar(255)
+
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@map("package_included_services")
+}
+
+model PackageAddon {
+  id          String   @id @default(uuid()) @db.Uuid
+  packageId   String   @map("package_id") @db.Uuid
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  price       Decimal  @db.Decimal(10, 2)
+  priceType   String   @default("flat") @map("price_type") @db.VarChar(30) // flat | per_person | per_day
+  isActive     Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+
+  package        Package        @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  bookingAddons  BookingAddon[]
+
+  @@map("package_addons")
+}
+
+model PackageMedia {
+  id        String   @id @default(uuid()) @db.Uuid
+  packageId String   @map("package_id") @db.Uuid
+  mediaType String   @map("media_type") @db.VarChar(20) // image | video | brochure
+  url       String   @db.VarChar(500)
+  caption   String?  @db.VarChar(255)
+  isCover   Boolean  @default(false) @map("is_cover")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@map("package_media")
+}
+
+// ============== Module 4 — Pricing & Revenue ==============
+model PricingRule {
+  id               String   @id @default(uuid()) @db.Uuid
+  name             String   @db.VarChar(255)
+  packageId        String?  @map("package_id") @db.Uuid
+  regionId         String?  @map("region_id") @db.Uuid
+  ruleType         String   @map("rule_type") @db.VarChar(30) // peak | holiday | last_minute | demand | custom
+  multiplier       Decimal? @db.Decimal(5, 4)
+  fixedAdjustment  Decimal? @map("fixed_adjustment") @db.Decimal(10, 2)
+  startDate        DateTime @map("start_date") @db.Date
+  endDate          DateTime @map("end_date") @db.Date
+  priority         Int      @default(0)
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  package Package? @relation(fields: [packageId], references: [id])
+  region  Region?  @relation(fields: [regionId], references: [id])
+
+  @@map("pricing_rules")
+}
+
+model PromoCode {
+  id                   String   @id @default(uuid()) @db.Uuid
+  code                 String   @unique @db.VarChar(50)
+  description          String?  @db.VarChar(255)
+  discountType         String   @map("discount_type") @db.VarChar(20) // percentage | fixed
+  discountValue        Decimal  @map("discount_value") @db.Decimal(10, 2)
+  minBookingValue      Decimal? @map("min_booking_value") @db.Decimal(10, 2)
+  maxUses              Int?     @map("max_uses")
+  usesCount            Int      @default(0) @map("uses_count")
+  maxUsesPerCustomer   Int      @default(1) @map("max_uses_per_customer")
+  regionId             String?  @map("region_id") @db.Uuid
+  validFrom            DateTime @map("valid_from") @db.Timestamptz(6)
+  validUntil           DateTime @map("valid_until") @db.Timestamptz(6)
+  isActive             Boolean  @default(true) @map("is_active")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  region   Region?   @relation(fields: [regionId], references: [id])
+  bookings Booking[]
+
+  @@map("promo_codes")
+}
+
+model Agent {
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String   @db.VarChar(255)
+  email          String   @unique @db.VarChar(255)
+  phone          String?  @db.VarChar(50)
+  regionId       String   @map("region_id") @db.Uuid
+  commissionRate Decimal  @map("commission_rate") @db.Decimal(5, 4)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  region   Region   @relation(fields: [regionId], references: [id])
+  bookings Booking[]
+
+  @@map("agents")
+}
+
+// ============== Module 7 — Settings & Access Control (needed for FKs) ==============
+model AdminUser {
+  id                    String    @id @default(uuid()) @db.Uuid
+  firstName             String    @map("first_name") @db.VarChar(100)
+  lastName              String    @map("last_name") @db.VarChar(100)
+  email                 String    @unique @db.VarChar(255)
+  passwordHash          String    @map("password_hash") @db.VarChar(255)
+  role                  String    @default("agent") @db.VarChar(30) // super_admin | manager | agent | viewer
+  isActive              Boolean   @default(true) @map("is_active")
+  lastLogin             DateTime? @map("last_login") @db.Timestamptz(6)
+  passwordResetToken    String?   @map("password_reset_token") @db.VarChar(255)
+  passwordResetExpires  DateTime? @map("password_reset_expires") @db.Timestamptz(6)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  regionAccess     AdminUserRegionAccess[]
+  refreshTokens    RefreshToken[]
+  leads            Lead[]
+  communicationLogs CommunicationLog[]
+  auditLogs        AuditLog[]
+
+  @@map("admin_users")
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid()) @db.Uuid
+  adminUserId String   @map("admin_user_id") @db.Uuid
+  tokenHash   String   @map("token_hash") @db.VarChar(255)
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  adminUser AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model AdminUserRegionAccess {
+  id              String  @id @default(uuid()) @db.Uuid
+  adminUserId     String  @map("admin_user_id") @db.Uuid
+  regionId        String  @map("region_id") @db.Uuid
+  permissionLevel String  @default("view") @map("permission_level") @db.VarChar(20) // view | edit | full
+
+  adminUser AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  region    Region    @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@map("admin_user_region_access")
+}
+
+model EmailTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  type      String   @db.VarChar(100) // booking_confirmation | invoice | cancellation | follow_up | inquiry_response | loyalty
+  subject   String   @db.VarChar(255)
+  bodyHtml  String   @map("body_html") @db.Text
+  bodyText  String?  @map("body_text") @db.Text
+  isActive  Boolean  @default(true) @map("is_active")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  followUpSequenceSteps FollowUpSequenceStep[]
+
+  @@map("email_templates")
+}
+
+// ============== Module 6 — CRM (Customer first for Booking) ==============
+model Customer {
+  id            String   @id @default(uuid()) @db.Uuid
+  firstName     String   @map("first_name") @db.VarChar(100)
+  lastName      String   @map("last_name") @db.VarChar(100)
+  email         String   @unique @db.VarChar(255)
+  phone         String?  @db.VarChar(50)
+  whatsapp      String?  @db.VarChar(50)
+  country       String?  @db.VarChar(100)
+  regionId      String?  @map("region_id") @db.Uuid
+  segment       String   @default("new") @db.VarChar(30) // new | regular | vip | churned
+  loyaltyTier   String   @default("bronze") @map("loyalty_tier") @db.VarChar(30) // bronze | silver | gold | platinum
+  loyaltyPoints Int      @default(0) @map("loyalty_points")
+  source        String?  @db.VarChar(100) // organic | referral | ad | agent
+  notes         String?  @db.Text
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  region            Region?            @relation(fields: [regionId], references: [id])
+  tags              CustomerTag[]
+  bookings          Booking[]
+  leads             Lead[]
+  communicationLogs CommunicationLog[]
+  surveys           CustomerSurvey[]
+
+  @@map("customers")
+}
+
+model CustomerTag {
+  id         String   @id @default(uuid()) @db.Uuid
+  customerId String   @map("customer_id") @db.Uuid
+  tag        String   @db.VarChar(100)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("customer_tags")
+}
+
+// ============== Module 5 — Booking Engine ==============
+model Booking {
+  id                  String    @id @default(uuid()) @db.Uuid
+  bookingRef          String    @unique @map("booking_ref") @db.VarChar(20)
+  customerId          String    @map("customer_id") @db.Uuid
+  yachtId             String    @map("yacht_id") @db.Uuid
+  packageId           String    @map("package_id") @db.Uuid
+  regionId            String    @map("region_id") @db.Uuid
+  agentId             String?   @map("agent_id") @db.Uuid
+  startDate           DateTime  @map("start_date") @db.Date
+  endDate             DateTime  @map("end_date") @db.Date
+  startTime           String?   @map("start_time") @db.VarChar(20) // TIME stored as string
+  guestCount          Int       @map("guest_count")
+  status              String    @default("inquiry") @db.VarChar(30) // inquiry | confirmed | paid | completed | cancelled
+  baseAmount          Decimal   @map("base_amount") @db.Decimal(10, 2)
+  addonsAmount        Decimal   @default(0) @map("addons_amount") @db.Decimal(10, 2)
+  discountAmount      Decimal   @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  taxAmount           Decimal   @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  totalAmount         Decimal   @map("total_amount") @db.Decimal(10, 2)
+  currencyCode        String    @map("currency_code") @db.VarChar(10)
+  promoCodeId         String?   @map("promo_code_id") @db.Uuid
+  cancellationPolicy  String?   @map("cancellation_policy") @db.VarChar(50)
+  cancellationReason  String?   @map("cancellation_reason") @db.Text
+  cancelledAt         DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  specialRequests     String?   @map("special_requests") @db.Text
+  internalNotes       String?   @map("internal_notes") @db.Text
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer   Customer   @relation(fields: [customerId], references: [id])
+  yacht      Yacht       @relation(fields: [yachtId], references: [id])
+  package    Package     @relation(fields: [packageId], references: [id])
+  region     Region      @relation(fields: [regionId], references: [id])
+  agent      Agent?      @relation(fields: [agentId], references: [id])
+  currency   Currency    @relation(fields: [currencyCode], references: [code])
+  promoCode  PromoCode?  @relation(fields: [promoCodeId], references: [id])
+  addons     BookingAddon[]
+  payments   Payment[]
+  leads      Lead[]
+  surveys    CustomerSurvey[]
+
+  @@map("bookings")
+}
+
+model BookingAddon {
+  id         String   @id @default(uuid()) @db.Uuid
+  bookingId  String   @map("booking_id") @db.Uuid
+  addonId    String   @map("addon_id") @db.Uuid
+  quantity   Int      @default(1)
+  unitPrice  Decimal  @map("unit_price") @db.Decimal(10, 2)
+  totalPrice Decimal  @map("total_price") @db.Decimal(10, 2)
+
+  booking Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  addon   PackageAddon @relation(fields: [addonId], references: [id])
+
+  @@map("booking_addons")
+}
+
+model Payment {
+  id            String    @id @default(uuid()) @db.Uuid
+  bookingId     String    @map("booking_id") @db.Uuid
+  amount        Decimal   @db.Decimal(10, 2)
+  currencyCode  String    @map("currency_code") @db.VarChar(10)
+  paymentType   String    @map("payment_type") @db.VarChar(30) // deposit | balance | refund | partial
+  paymentMethod String?   @map("payment_method") @db.VarChar(50) // card | bank_transfer | cash | paypal
+  status        String    @default("pending") @db.VarChar(30) // pending | completed | failed | refunded
+  gatewayRef    String?   @map("gateway_ref") @db.VarChar(255)
+  paidAt        DateTime? @map("paid_at") @db.Timestamptz(6)
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  currency Currency @relation(fields: [currencyCode], references: [code])
+
+  @@map("payments")
+}
+
+// ============== Module 6 — CRM (continued) ==============
+model Lead {
+  id                  String    @id @default(uuid()) @db.Uuid
+  customerId          String?   @map("customer_id") @db.Uuid
+  regionId            String    @map("region_id") @db.Uuid
+  packageId           String?   @map("package_id") @db.Uuid
+  yachtId             String?   @map("yacht_id") @db.Uuid
+  status              String    @default("new") @db.VarChar(30) // new | contacted | quoted | converted | lost
+  source              String?   @db.VarChar(100)
+  notes               String?   @db.Text
+  assignedTo          String?   @map("assigned_to") @db.Uuid
+  convertedBookingId  String?   @map("converted_booking_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer  Customer?  @relation(fields: [customerId], references: [id])
+  region    Region     @relation(fields: [regionId], references: [id])
+  package   Package?   @relation(fields: [packageId], references: [id])
+  yacht     Yacht?     @relation(fields: [yachtId], references: [id])
+  assignedToUser AdminUser? @relation(fields: [assignedTo], references: [id])
+  convertedBooking Booking? @relation(fields: [convertedBookingId], references: [id])
+
+  @@map("leads")
+}
+
+model CommunicationLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  customerId  String   @map("customer_id") @db.Uuid
+  channel     String   @db.VarChar(30) // email | phone | whatsapp | in_person
+  direction   String   @db.VarChar(10) // inbound | outbound
+  subject     String?  @db.VarChar(255)
+  body        String?  @db.Text
+  adminUserId String?  @map("admin_user_id") @db.Uuid
+  loggedAt    DateTime @default(now()) @map("logged_at") @db.Timestamptz(6)
+
+  customer  Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  adminUser AdminUser? @relation(fields: [adminUserId], references: [id])
+
+  @@map("communication_logs")
+}
+
+model CustomerSurvey {
+  id            String   @id @default(uuid()) @db.Uuid
+  bookingId     String   @map("booking_id") @db.Uuid
+  customerId    String   @map("customer_id") @db.Uuid
+  overallRating Int     @map("overall_rating") // 1-5
+  yachtRating   Int      @map("yacht_rating") // 1-5
+  crewRating    Int      @map("crew_rating") // 1-5
+  valueRating   Int      @map("value_rating") // 1-5
+  comment       String?  @db.Text
+  isPublic      Boolean  @default(false) @map("is_public")
+  submittedAt   DateTime @default(now()) @map("submitted_at") @db.Timestamptz(6)
+
+  booking  Booking  @relation(fields: [bookingId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("customer_surveys")
+}
+
+model FollowUpSequence {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(255)
+  triggerEvent String   @map("trigger_event") @db.VarChar(100) // booking_confirmed | booking_completed | inquiry_received | no_activity_30d
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  steps FollowUpSequenceStep[]
+
+  @@map("follow_up_sequences")
+}
+
+model FollowUpSequenceStep {
+  id          String  @id @default(uuid()) @db.Uuid
+  sequenceId  String  @map("sequence_id") @db.Uuid
+  stepOrder   Int     @map("step_order")
+  delayDays   Int     @map("delay_days")
+  channel     String  @db.VarChar(30) // email | whatsapp | sms
+  templateId  String? @map("template_id") @db.Uuid
+  subject     String? @db.VarChar(255)
+
+  sequence FollowUpSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  template EmailTemplate?    @relation(fields: [templateId], references: [id])
+
+  @@map("follow_up_sequence_steps")
+}
+
+// ============== Module 8 — Audit Log ==============
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  adminUserId String   @map("admin_user_id") @db.Uuid
+  action      String   @db.VarChar(30) // created | updated | deleted | login | logout
+  module      String   @db.VarChar(100)
+  entityType  String   @map("entity_type") @db.VarChar(100)
+  entityId    String?  @map("entity_id") @db.Uuid
+  description String?  @db.Text
+  ipAddress   String?  @map("ip_address") @db.VarChar(50)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  adminUser AdminUser @relation(fields: [adminUserId], references: [id])
+
+  @@map("audit_logs")
+}
