@@ -4,6 +4,7 @@ import * as yachtImageController from '../controllers/yachtImageController.js';
 import * as yachtAmenityController from '../controllers/yachtAmenityController.js';
 import * as yachtDocumentController from '../controllers/yachtDocumentController.js';
 import * as yachtMaintenanceController from '../controllers/yachtMaintenanceController.js';
+import * as yachtAvailabilityController from '../controllers/yachtAvailabilityController.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -35,6 +36,12 @@ router.get('/:id/maintenance', requireAuth, yachtMaintenanceController.getYachtM
 router.post('/:id/maintenance', requireAuth, yachtMaintenanceController.createYachtMaintenance);
 router.patch('/:id/maintenance/:mId', requireAuth, yachtMaintenanceController.updateYachtMaintenance);
 router.delete('/:id/maintenance/:mId', requireAuth, yachtMaintenanceController.deleteYachtMaintenance);
+
+// Availability / blackout routes (check and block before :blockId)
+router.get('/:id/availability/check', requireAuth, yachtAvailabilityController.checkAvailability);
+router.post('/:id/availability/block', requireAuth, yachtAvailabilityController.addBlock);
+router.get('/:id/availability', requireAuth, yachtAvailabilityController.getAvailability);
+router.delete('/:id/availability/:blockId', requireAuth, yachtAvailabilityController.removeBlock);
 
 router.get('/:id', requireAuth, yachtController.getYachtById);
 router.patch('/:id', requireAuth, yachtController.updateYacht);

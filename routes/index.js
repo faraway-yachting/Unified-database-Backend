@@ -4,6 +4,11 @@ import uploadRouter from './upload.js';
 import regionRouter from './region.js';
 import charterCompanyRouter from './charterCompany.js';
 import yachtRouter from './yacht.js';
+import packageRouter from './package.js';
+import bookingRouter from './booking.js';
+import pricingRouter from './pricing.js';
+import crmRouter from './crm.js';
+import settingsRouter from './settings.js';
 
 const router = express.Router();
 
@@ -12,6 +17,11 @@ router.use('/upload', uploadRouter);
 router.use('/regions', regionRouter);
 router.use('/charter-companies', charterCompanyRouter);
 router.use('/yachts', yachtRouter);
+router.use('/packages', packageRouter);
+router.use('/bookings', bookingRouter);
+router.use('/pricing', pricingRouter);
+router.use('/crm', crmRouter);
+router.use('/settings', settingsRouter);
 
 // Example route
 router.get('/', (req, res) => {
