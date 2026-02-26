@@ -9,7 +9,7 @@ router.post('/single', requireAuth, uploadController.uploadMiddleware.single('fi
 router.post('/multiple', requireAuth, uploadController.uploadMiddleware.array('files', 10), uploadController.uploadMultiple);
 
 // File management routes
-router.get('/files/:key/presigned-url', requireAuth, uploadController.getPresignedUrlForFile);
+router.get('/files/presigned-url/:key', requireAuth, uploadController.getPresignedUrlForFile);
 router.delete('/files/:key', requireAuth, uploadController.deleteFileFromS3);
 
 export default router;

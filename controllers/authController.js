@@ -1,5 +1,42 @@
 import authConfig from '../config/auth.js';
 import * as authService from '../services/authService.js';
+import { prisma } from '../config/database.js';
+
+/**
+ * GET /api/auth/me
+ * Returns the current authenticated admin user (requires valid access token).
+ * Response: { id, email, firstName, lastName, role, isActive, lastLogin, regionAccess }.
+ */
+export async function me(req, res, next) {
+  try {
+    const user = await prisma.adminUser.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        isActive: true,
+        lastLogin: true,
+        createdAt: true,
+        regionAccess: {
+          select: {
+            permissionLevel: true,
+            regionId: true,
+            region: { select: { id: true, name: true, slug: true } },
+          },
+        },
+      },
+    });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.status(200).json(user);
+  } catch (err) {
+    next(err);
+  }
+}
 
 /**
  * POST /api/auth/login
@@ -30,8 +67,8 @@ export async function logout(req, res, next) {
       await authService.logout(refreshToken);
     }
     const { accessTokenName, refreshTokenName } = authConfig.cookies;
-    res.clearCookie(accessTokenName);
-    res.clearCookie(refreshTokenName);
+    res.clearCookie(accessTokenName, { path: '/' });
+    res.clearCookie(refreshTokenName, { path: '/' });
     res.status(200).json({ message: 'Logged out successfully' });
   } catch (err) {
     next(err);

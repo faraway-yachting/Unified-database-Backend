@@ -26,6 +26,7 @@ function setTokenCookies(res, accessToken, refreshToken) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
+    path: '/',
   };
   res.cookie(accessTokenName, accessToken, { ...cookieOptions, maxAge: accessTokenMaxAgeMs });
   res.cookie(refreshTokenName, refreshToken, { ...cookieOptions, maxAge: refreshTokenMaxAgeMs });
