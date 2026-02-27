@@ -62,6 +62,20 @@ export async function getYachtById(req, res, next) {
 }
 
 /**
+ * GET /api/yachts/:id/detail
+ * Get full yacht details with related data.
+ */
+export async function getYachtDetail(req, res, next) {
+  try {
+    const { id } = req.params;
+    const yacht = await yachtService.getYachtDetail(id);
+    res.status(200).json(yacht);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * POST /api/yachts
  * Create a new yacht.
  * Body: { companyId, name, type, capacityGuests, regionId, ... }

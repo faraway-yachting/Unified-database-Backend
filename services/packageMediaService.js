@@ -1,5 +1,5 @@
 import { prisma } from '../config/database.js';
-import { uploadFile, generateS3Key, validateFile, deleteFile as deleteS3File } from './s3Service.js';
+import { uploadFile, generateS3Key, validateFile, deleteFile as deleteS3File, getPresignedUrl, s3Config } from './s3Service.js';
 
 const VALID_MEDIA_TYPES = ['image', 'video', 'brochure'];
 
@@ -35,6 +35,20 @@ export async function getMedia(packageId) {
     where: { packageId },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   });
+
+  if (s3Config.bucket && media.length) {
+    await Promise.all(
+      media.map(async (m) => {
+        const key = extractS3KeyFromUrl(m.url, packageId);
+        if (!key) return;
+        try {
+          m.url = await getPresignedUrl(key);
+        } catch (_) {
+          // Keep original URL if signing fails
+        }
+      })
+    );
+  }
 
   return {
     packageId: pkg.id,
@@ -118,6 +132,20 @@ export async function uploadMedia(packageId, files, options = {}) {
     });
 
     uploaded.push(media);
+  }
+
+  if (s3Config.bucket) {
+    await Promise.all(
+      uploaded.map(async (m) => {
+        const key = extractS3KeyFromUrl(m.url, packageId);
+        if (!key) return;
+        try {
+          m.url = await getPresignedUrl(key);
+        } catch (_) {
+          // Keep original URL if signing fails
+        }
+      })
+    );
   }
 
   return uploaded;

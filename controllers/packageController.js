@@ -28,7 +28,23 @@ export async function listPackages(req, res, next) {
  */
 export async function createPackage(req, res, next) {
   try {
-    const pkg = await packageService.createPackage(req.body);
+    let files = [];
+    if (req.files) {
+      if (req.files.media) {
+        files = Array.isArray(req.files.media) ? req.files.media : [req.files.media];
+      } else if (req.files.file) {
+        files = Array.isArray(req.files.file) ? req.files.file : [req.files.file];
+      }
+    } else if (req.file) {
+      files = [req.file];
+    }
+
+    const { mediaType, caption, isCover, sortOrder } = req.body;
+    const pkg = await packageService.createPackage(
+      req.body,
+      files,
+      { mediaType, caption, isCover, sortOrder }
+    );
     res.status(201).json(pkg);
   } catch (err) {
     next(err);

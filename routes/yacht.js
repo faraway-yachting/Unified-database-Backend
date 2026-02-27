@@ -43,6 +43,9 @@ router.post('/:id/availability/block', requireAuth, yachtAvailabilityController.
 router.get('/:id/availability', requireAuth, yachtAvailabilityController.getAvailability);
 router.delete('/:id/availability/:blockId', requireAuth, yachtAvailabilityController.removeBlock);
 
+// Detail route (must be before /:id)
+router.get('/:id/detail', requireAuth, yachtController.getYachtDetail);
+
 router.get('/:id', requireAuth, yachtController.getYachtById);
 router.patch('/:id', requireAuth, yachtController.updateYacht);
 router.delete('/:id', requireAuth, yachtController.softDeleteYacht);

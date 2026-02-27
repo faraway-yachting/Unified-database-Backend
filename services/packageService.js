@@ -1,4 +1,6 @@
 import { prisma } from '../config/database.js';
+import * as packageMediaService from './packageMediaService.js';
+import { getPresignedUrl, s3Config } from './s3Service.js';
 
 const VALID_DURATION_TYPES = ['half_day', 'full_day', 'weekly', 'custom'];
 const VALID_STATUSES = ['active', 'draft', 'archived'];
@@ -92,7 +94,7 @@ export async function listPackages(options = {}) {
  * @param {object} data - Package fields
  * @returns {Promise<object>}
  */
-export async function createPackage(data) {
+export async function createPackage(data, files = [], mediaOptions = {}) {
   const {
     name,
     description,
@@ -174,6 +176,11 @@ export async function createPackage(data) {
     },
   });
 
+  if (files && files.length > 0) {
+    const media = await packageMediaService.uploadMedia(pkg.id, files, mediaOptions);
+    return { ...pkg, media };
+  }
+
   return pkg;
 }
 
@@ -203,7 +210,40 @@ export async function getPackageById(id) {
     throw err;
   }
 
+  if (s3Config.bucket && pkg.media?.length) {
+    await Promise.all(
+      pkg.media.map(async (m) => {
+        const key = extractS3KeyFromUrl(m.url, id);
+        if (!key) return;
+        try {
+          m.url = await getPresignedUrl(key);
+        } catch (_) {
+          // Keep original URL if signing fails
+        }
+      })
+    );
+  }
+
   return pkg;
+}
+
+function extractS3KeyFromUrl(url, packageId) {
+  if (!url) return null;
+  if (url.startsWith('s3://')) {
+    const parts = url.replace('s3://', '').split('/');
+    return parts.length > 1 ? parts.slice(1).join('/') : null;
+  }
+  const match = url.match(/\/packages\/[^/]+\/media\/(.+)$/);
+  if (match) return `packages/${packageId}/media/${match[1]}`;
+  try {
+    const u = new URL(url);
+    const pathParts = u.pathname.split('/').filter(Boolean);
+    const idx = pathParts.indexOf('packages');
+    if (idx !== -1 && pathParts[idx + 1] === packageId && pathParts[idx + 2] === 'media' && pathParts[idx + 3]) {
+      return pathParts.slice(idx).join('/');
+    }
+  } catch (_) {}
+  return null;
 }
 
 /**

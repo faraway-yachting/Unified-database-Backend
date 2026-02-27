@@ -1,4 +1,45 @@
 import { prisma } from '../config/database.js';
+import { getPresignedUrl, s3Config } from './s3Service.js';
+
+function extractS3KeyFromUrl(url) {
+  if (!url) return null;
+  if (url.startsWith('s3://')) {
+    const parts = url.replace('s3://', '').split('/');
+    return parts.length > 1 ? parts.slice(1).join('/') : null;
+  }
+  try {
+    const u = new URL(url);
+    const pathParts = u.pathname.split('/').filter(Boolean);
+    if (pathParts.length === 0) return null;
+    if (s3Config.bucket && pathParts[0] === s3Config.bucket) {
+      return pathParts.slice(1).join('/');
+    }
+    return pathParts.join('/');
+  } catch (_) {
+    return null;
+  }
+}
+
+async function attachPresignedUrlsToYachts(yachts) {
+  if (!s3Config.bucket) return yachts;
+  await Promise.all(
+    yachts.map(async (yacht) => {
+      if (!yacht?.images?.length) return;
+      await Promise.all(
+        yacht.images.map(async (img) => {
+          const key = extractS3KeyFromUrl(img.imageUrl);
+          if (!key) return;
+          try {
+            img.imageUrl = await getPresignedUrl(key);
+          } catch (_) {
+            // Keep original URL if signing fails
+          }
+        })
+      );
+    })
+  );
+  return yachts;
+}
 
 /**
  * List all yachts with optional filtering and pagination.
@@ -78,6 +119,10 @@ export async function listYachts(options = {}) {
     prisma.yacht.count({ where }),
   ]);
 
+  if (includeImages) {
+    await attachPresignedUrlsToYachts(yachts);
+  }
+
   return {
     yachts,
     total,
@@ -134,6 +179,75 @@ export async function getYachtById(id, options = {}) {
     const err = new Error('Yacht not found');
     err.status = 404;
     throw err;
+  }
+
+  if (includeImages && yacht.images?.length) {
+    await attachPresignedUrlsToYachts([yacht]);
+  }
+
+  return yacht;
+}
+
+/**
+ * Get full yacht details by ID, including related data.
+ * @param {string} id - Yacht UUID
+ * @returns {Promise<object>}
+ */
+export async function getYachtDetail(id) {
+  const yacht = await prisma.yacht.findUnique({
+    where: { id },
+    include: {
+      company: {
+        select: {
+          id: true,
+          name: true,
+          logoUrl: true,
+          contactEmail: true,
+          contactPhone: true,
+        },
+      },
+      region: true,
+      images: {
+        orderBy: { sortOrder: 'asc' },
+      },
+      amenities: {
+        orderBy: [
+          { category: 'asc' },
+          { name: 'asc' },
+        ],
+      },
+      documents: {
+        orderBy: [
+          { documentType: 'asc' },
+          { issuedDate: 'desc' },
+        ],
+      },
+      maintenance: {
+        orderBy: { scheduledDate: 'desc' },
+      },
+      availabilityBlocks: {
+        orderBy: { startDate: 'asc' },
+      },
+      packages: {
+        orderBy: { createdAt: 'desc' },
+      },
+      bookings: {
+        orderBy: { startDate: 'desc' },
+      },
+      leads: {
+        orderBy: { createdAt: 'desc' },
+      },
+    },
+  });
+
+  if (!yacht) {
+    const err = new Error('Yacht not found');
+    err.status = 404;
+    throw err;
+  }
+
+  if (yacht.images?.length) {
+    await attachPresignedUrlsToYachts([yacht]);
   }
 
   return yacht;

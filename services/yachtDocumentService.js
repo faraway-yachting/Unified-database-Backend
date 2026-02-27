@@ -1,5 +1,5 @@
 import { prisma } from '../config/database.js';
-import { uploadFile, generateS3Key, validateFile, deleteFile as deleteS3File } from './s3Service.js';
+import { uploadFile, generateS3Key, validateFile, deleteFile as deleteS3File, getPresignedUrl, s3Config } from './s3Service.js';
 
 const VALID_DOCUMENT_TYPES = ['insurance', 'registration', 'certificate', 'inspection'];
 
@@ -130,7 +130,44 @@ export async function uploadYachtDocument(yachtId, file, data) {
     },
   });
 
+  if (s3Config.bucket) {
+    const key = extractS3KeyFromUrl(document.documentUrl, yachtId);
+    if (key) {
+      try {
+        document.documentUrl = await getPresignedUrl(key);
+      } catch (_) {
+        // Keep original URL if signing fails
+      }
+    }
+  }
+
   return document;
+}
+
+function extractS3KeyFromUrl(documentUrl, yachtId) {
+  if (!documentUrl) return null;
+  if (documentUrl.startsWith('s3://')) {
+    const parts = documentUrl.replace('s3://', '').split('/');
+    return parts.length > 1 ? parts.slice(1).join('/') : null;
+  }
+  if (documentUrl.includes('.s3.') || documentUrl.includes('s3.amazonaws.com')) {
+    try {
+      const url = new URL(documentUrl);
+      const pathParts = url.pathname.split('/').filter(Boolean);
+      if (pathParts.length === 0) return null;
+      if (s3Config.bucket && pathParts[0] === s3Config.bucket) {
+        return pathParts.slice(1).join('/');
+      }
+      return pathParts.join('/');
+    } catch (_) {
+      const match = documentUrl.match(/\/yachts\/[^/]+\/documents\/(.+)$/);
+      if (match) return `yachts/${yachtId}/documents/${match[1]}`;
+    }
+  } else {
+    const match = documentUrl.match(/\/yachts\/[^/]+\/documents\/(.+)$/);
+    if (match) return `yachts/${yachtId}/documents/${match[1]}`;
+  }
+  return null;
 }
 
 /**

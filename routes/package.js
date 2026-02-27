@@ -9,7 +9,15 @@ import { requireAuth } from '../middleware/auth.js';
 const router = express.Router();
 
 router.get('/', requireAuth, packageController.listPackages);
-router.post('/', requireAuth, packageController.createPackage);
+router.post(
+  '/',
+  requireAuth,
+  packageMediaController.uploadMiddleware.fields([
+    { name: 'media', maxCount: 10 },
+    { name: 'file', maxCount: 1 },
+  ]),
+  packageController.createPackage
+);
 // Region visibility (must be before /:id)
 router.get('/:id/regions', requireAuth, packageRegionController.getRegionVisibility);
 router.patch('/:id/regions', requireAuth, packageRegionController.updateRegionVisibilityBulk);
