@@ -8,11 +8,12 @@ import * as followUpSequenceService from '../services/followUpSequenceService.js
 // --- Customers ---
 export async function listCustomers(req, res, next) {
   try {
-    const { segment, region, tag, page, limit } = req.query;
+    const { segment, region, tag, search, page, limit } = req.query;
     const result = await customerService.listCustomers({
       segment,
       regionId: region,
       tag,
+      search,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
     });

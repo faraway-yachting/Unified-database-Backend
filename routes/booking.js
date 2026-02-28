@@ -7,6 +7,7 @@ const router = express.Router();
 // Calendar and availability (must be before /)
 router.get('/calendar', requireAuth, bookingController.getCalendarView);
 router.get('/availability', requireAuth, bookingController.checkAvailability);
+router.get('/upcoming', requireAuth, bookingController.getUpcomingBookings);
 
 router.get('/', requireAuth, bookingController.listBookings);
 router.post('/', requireAuth, bookingController.createBooking);

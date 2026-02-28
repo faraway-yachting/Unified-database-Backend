@@ -4,7 +4,7 @@ const VALID_SEGMENTS = ['new', 'regular', 'vip', 'churned'];
 const VALID_LOYALTY_TIERS = ['bronze', 'silver', 'gold', 'platinum'];
 
 export async function listCustomers(options = {}) {
-  const { segment, regionId, tag, page = 1, limit = 50 } = options;
+  const { segment, regionId, tag, search, page = 1, limit = 50 } = options;
   const skip = (page - 1) * limit;
   const where = {};
 
@@ -19,6 +19,16 @@ export async function listCustomers(options = {}) {
   if (regionId) where.regionId = regionId;
   if (tag) {
     where.tags = { some: { tag: tag.trim() } };
+  }
+  if (search && String(search).trim()) {
+    const term = String(search).trim();
+    where.OR = [
+      { firstName: { contains: term, mode: 'insensitive' } },
+      { lastName: { contains: term, mode: 'insensitive' } },
+      { email: { contains: term, mode: 'insensitive' } },
+      { phone: { contains: term, mode: 'insensitive' } },
+      { whatsapp: { contains: term, mode: 'insensitive' } },
+    ];
   }
 
   const [customers, total] = await Promise.all([

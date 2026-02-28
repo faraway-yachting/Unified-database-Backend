@@ -99,6 +99,33 @@ export async function listBookings(options = {}) {
 }
 
 /**
+ * List upcoming bookings (next 5 by start date).
+ * @returns {Promise<{ bookings: Array }>}
+ */
+export async function getUpcomingBookings() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const bookings = await prisma.booking.findMany({
+    where: {
+      status: { not: 'cancelled' },
+      startDate: { gte: today },
+    },
+    include: {
+      customer: { select: { id: true, firstName: true, lastName: true, email: true } },
+      yacht: { select: { id: true, name: true, type: true } },
+      package: { select: { id: true, name: true } },
+      region: { select: { id: true, name: true, slug: true } },
+      currency: { select: { code: true, symbol: true } },
+    },
+    orderBy: { startDate: 'asc' },
+    take: 5,
+  });
+
+  return { bookings };
+}
+
+/**
  * Create a booking.
  * @param {object} data - Booking fields
  * @returns {Promise<object>}

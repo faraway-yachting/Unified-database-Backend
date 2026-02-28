@@ -64,6 +64,19 @@ export async function listBookings(req, res, next) {
 }
 
 /**
+ * GET /api/bookings/upcoming
+ * List upcoming bookings (next 5).
+ */
+export async function getUpcomingBookings(req, res, next) {
+  try {
+    const result = await bookingService.getUpcomingBookings();
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * POST /api/bookings
  * Create booking. Body: customerId, yachtId, packageId, regionId, startDate, endDate, guestCount, baseAmount, totalAmount, currencyCode, ...
  */
