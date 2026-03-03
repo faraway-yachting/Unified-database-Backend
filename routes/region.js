@@ -11,6 +11,7 @@ router.get('/', requireAuth, regionController.listRegions);
 router.post('/', requireAuth, regionController.createRegion);
 
 // Package management routes (must be before /:id to avoid route conflicts)
+router.get('/performance', requireAuth, regionController.getRegionPerformance);
 router.get('/:id/packages', requireAuth, regionPackageController.getRegionPackages);
 router.post('/:id/packages', requireAuth, regionPackageController.assignPackageToRegion);
 router.delete('/:id/packages/:packageId', requireAuth, regionPackageController.removePackageFromRegion);

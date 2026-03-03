@@ -41,5 +41,6 @@ router.get('/revenue/export', requireAuth, pricingController.exportRevenueReport
 router.get('/revenue/by-region', requireAuth, pricingController.getRevenueByRegion);
 router.get('/revenue/by-package', requireAuth, pricingController.getRevenueByPackage);
 router.get('/revenue', requireAuth, pricingController.getRevenueSummary);
+router.get('/commissions/pending', requireAuth, pricingController.getPendingCommissions);
 
 export default router;

@@ -55,6 +55,34 @@ export async function listRegions(options = {}) {
 }
 
 /**
+ * Get region performance data for charts.
+ * @returns {Promise<{ regions: Array }>}
+ */
+export async function getRegionPerformance() {
+  const grouped = await prisma.booking.groupBy({
+    by: ['regionId'],
+    _count: { _all: true },
+    _sum: { totalAmount: true },
+  });
+
+  const regionIds = grouped.map((item) => item.regionId);
+  const regions = await prisma.region.findMany({
+    where: { id: { in: regionIds } },
+    select: { id: true, name: true },
+  });
+  const regionMap = new Map(regions.map((r) => [r.id, r.name]));
+
+  const data = grouped.map((item) => ({
+    regionId: item.regionId,
+    name: regionMap.get(item.regionId) ?? 'Unknown',
+    bookings: item._count?._all ?? 0,
+    revenue: Number(item._sum?.totalAmount ?? 0),
+  }));
+
+  return { regions: data };
+}
+
+/**
  * Get a single region by ID.
  * @param {string} id - Region UUID
  * @returns {Promise<object>}

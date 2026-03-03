@@ -21,6 +21,19 @@ export async function listRegions(req, res, next) {
 }
 
 /**
+ * GET /api/regions/performance
+ * Get region performance aggregated by revenue and bookings.
+ */
+export async function getRegionPerformance(req, res, next) {
+  try {
+    const result = await regionService.getRegionPerformance();
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * GET /api/regions/:id
  * Get a single region by ID.
  */

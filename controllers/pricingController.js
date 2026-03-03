@@ -298,3 +298,13 @@ export async function exportRevenueReport(req, res, next) {
     next(err);
   }
 }
+
+export async function getPendingCommissions(req, res, next) {
+  try {
+    const { from, to } = req.query;
+    const result = await revenueService.getPendingCommissions({ from, to });
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}

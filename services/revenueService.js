@@ -57,8 +57,11 @@ export async function getRevenueByRegion(options = {}) {
 
   const bookings = await prisma.booking.findMany({
     where,
-    include: { region: { select: { id: true, name: true } } },
-    select: { totalAmount: true, regionId: true, region: true },
+    select: {
+      totalAmount: true,
+      regionId: true,
+      region: { select: { id: true, name: true } },
+    },
   });
 
   const byRegion = {};
@@ -89,8 +92,11 @@ export async function getRevenueByPackage(options = {}) {
 
   const bookings = await prisma.booking.findMany({
     where,
-    include: { package: { select: { id: true, name: true } } },
-    select: { totalAmount: true, packageId: true, package: true },
+    select: {
+      totalAmount: true,
+      packageId: true,
+      package: { select: { id: true, name: true } },
+    },
   });
 
   const byPackage = {};
@@ -114,4 +120,39 @@ export async function exportRevenueReport(options = {}) {
   const byRegion = await getRevenueByRegion(options);
   const byPackage = await getRevenueByPackage(options);
   return { summary, byRegion, byPackage };
+}
+
+export async function getPendingCommissions(options = {}) {
+  const { from, to } = options;
+
+  const where = {
+    status: { in: ['confirmed', 'paid', 'completed'] },
+    agentId: { not: null },
+  };
+  if (from || to) {
+    where.createdAt = {};
+    if (from) where.createdAt.gte = new Date(from);
+    if (to) where.createdAt.lte = new Date(to);
+  }
+
+  const bookings = await prisma.booking.findMany({
+    where,
+    select: {
+      totalAmount: true,
+      agent: { select: { commissionRate: true } },
+    },
+  });
+
+  const totalPending = bookings.reduce((sum, booking) => {
+    const rate = Number(booking.agent?.commissionRate || 0);
+    return sum + Number(booking.totalAmount) * rate;
+  }, 0);
+
+  return {
+    period: { from: from || null, to: to || null },
+    summary: {
+      totalPending,
+      bookingCount: bookings.length,
+    },
+  };
 }
