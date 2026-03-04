@@ -9,6 +9,9 @@ import routes from './routes/index.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy for correct client IP in X-Forwarded-For (e.g. behind nginx/load balancer)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors({ origin: true, credentials: true }));
 app.use(morgan('dev'));

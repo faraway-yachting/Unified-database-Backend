@@ -1,6 +1,7 @@
 import express from 'express';
 import authRouter from './auth.js';
 import uploadRouter from './upload.js';
+import dashboardRouter from './dashboard.js';
 import regionRouter from './region.js';
 import charterCompanyRouter from './charterCompany.js';
 import yachtRouter from './yacht.js';
@@ -13,6 +14,7 @@ import settingsRouter from './settings.js';
 const router = express.Router();
 
 router.use('/auth', authRouter);
+router.use('/dashboard', dashboardRouter);
 router.use('/upload', uploadRouter);
 router.use('/regions', regionRouter);
 router.use('/charter-companies', charterCompanyRouter);

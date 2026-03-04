@@ -1,6 +1,7 @@
 import authConfig from '../config/auth.js';
 import * as authService from '../services/authService.js';
 import { prisma } from '../config/database.js';
+import { logAuditDirect, getClientIp } from '../utils/audit.js';
 
 /**
  * GET /api/auth/me
@@ -50,6 +51,15 @@ export async function login(req, res, next) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
     const result = await authService.login({ email, password }, res);
+    logAuditDirect({
+      adminUserId: result.user.id,
+      action: 'login',
+      module: 'auth',
+      entityType: 'AdminUser',
+      entityId: result.user.id,
+      description: `Logged in: ${result.user.email}`,
+      ipAddress: getClientIp(req),
+    }).catch(() => {});
     res.status(200).json(result);
   } catch (err) {
     next(err);
@@ -63,8 +73,20 @@ export async function login(req, res, next) {
 export async function logout(req, res, next) {
   try {
     const refreshToken = req.cookies?.refreshToken ?? req.body?.refreshToken;
+    let logoutResult = {};
     if (refreshToken) {
-      await authService.logout(refreshToken);
+      logoutResult = await authService.logout(refreshToken);
+    }
+    if (logoutResult.adminUserId) {
+      logAuditDirect({
+        adminUserId: logoutResult.adminUserId,
+        action: 'logout',
+        module: 'auth',
+        entityType: 'AdminUser',
+        entityId: logoutResult.adminUserId,
+        description: 'Logged out',
+        ipAddress: getClientIp(req),
+      }).catch(() => {});
     }
     const { accessTokenName, refreshTokenName } = authConfig.cookies;
     res.clearCookie(accessTokenName, { path: '/' });

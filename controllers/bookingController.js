@@ -4,6 +4,7 @@ import * as bookingAddonService from '../services/bookingAddonService.js';
 import * as bookingPaymentService from '../services/bookingPaymentService.js';
 import * as bookingCalendarService from '../services/bookingCalendarService.js';
 import { sendBookingConfirmationEmail, sendPaymentReminderEmail } from '../services/emailService.js';
+import { logAudit } from '../utils/audit.js';
 
 /**
  * GET /api/bookings/calendar
@@ -83,6 +84,13 @@ export async function getUpcomingBookings(req, res, next) {
 export async function createBooking(req, res, next) {
   try {
     const booking = await bookingService.createBooking(req.body);
+    logAudit(req, {
+      action: 'created',
+      module: 'bookings',
+      entityType: 'Booking',
+      entityId: booking.id,
+      description: `Created booking ${booking.bookingRef}`,
+    }).catch(() => {});
     res.status(201).json(booking);
   } catch (err) {
     next(err);
@@ -111,6 +119,13 @@ export async function updateBooking(req, res, next) {
   try {
     const { id } = req.params;
     const booking = await bookingService.updateBooking(id, req.body);
+    logAudit(req, {
+      action: 'updated',
+      module: 'bookings',
+      entityType: 'Booking',
+      entityId: id,
+      description: `Updated booking ${booking.bookingRef}`,
+    }).catch(() => {});
     res.status(200).json(booking);
   } catch (err) {
     next(err);
@@ -126,6 +141,13 @@ export async function cancelBooking(req, res, next) {
     const { id } = req.params;
     const { cancellationReason } = req.body || {};
     const booking = await bookingService.cancelBooking(id, { cancellationReason });
+    logAudit(req, {
+      action: 'deleted',
+      module: 'bookings',
+      entityType: 'Booking',
+      entityId: id,
+      description: `Cancelled booking ${booking.bookingRef}`,
+    }).catch(() => {});
     res.status(200).json(booking);
   } catch (err) {
     next(err);
@@ -169,6 +191,13 @@ export async function cancelBookingPost(req, res, next) {
     const { id } = req.params;
     const { cancellationReason } = req.body || {};
     const booking = await bookingService.cancelBooking(id, { cancellationReason });
+    logAudit(req, {
+      action: 'deleted',
+      module: 'bookings',
+      entityType: 'Booking',
+      entityId: id,
+      description: `Cancelled booking ${booking.bookingRef}`,
+    }).catch(() => {});
     res.status(200).json(booking);
   } catch (err) {
     next(err);

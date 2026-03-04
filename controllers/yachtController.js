@@ -1,4 +1,5 @@
 import * as yachtService from '../services/yachtService.js';
+import { logAudit } from '../utils/audit.js';
 
 /**
  * GET /api/yachts
@@ -83,6 +84,13 @@ export async function getYachtDetail(req, res, next) {
 export async function createYacht(req, res, next) {
   try {
     const yacht = await yachtService.createYacht(req.body);
+    logAudit(req, {
+      action: 'created',
+      module: 'yachts',
+      entityType: 'Yacht',
+      entityId: yacht.id,
+      description: `Created yacht ${yacht.name}`,
+    }).catch(() => {});
     res.status(201).json(yacht);
   } catch (err) {
     next(err);
@@ -98,6 +106,13 @@ export async function updateYacht(req, res, next) {
   try {
     const { id } = req.params;
     const yacht = await yachtService.updateYacht(id, req.body);
+    logAudit(req, {
+      action: 'updated',
+      module: 'yachts',
+      entityType: 'Yacht',
+      entityId: id,
+      description: `Updated yacht ${yacht.name}`,
+    }).catch(() => {});
     res.status(200).json(yacht);
   } catch (err) {
     next(err);
@@ -112,6 +127,13 @@ export async function softDeleteYacht(req, res, next) {
   try {
     const { id } = req.params;
     const yacht = await yachtService.softDeleteYacht(id);
+    logAudit(req, {
+      action: 'deleted',
+      module: 'yachts',
+      entityType: 'Yacht',
+      entityId: id,
+      description: `Deleted yacht ${yacht.name}`,
+    }).catch(() => {});
     res.status(200).json({
       message: 'Yacht soft deleted successfully',
       yacht,

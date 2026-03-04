@@ -4,6 +4,7 @@ import * as leadService from '../services/leadService.js';
 import * as communicationLogService from '../services/communicationLogService.js';
 import * as customerSurveyService from '../services/customerSurveyService.js';
 import * as followUpSequenceService from '../services/followUpSequenceService.js';
+import { logAudit } from '../utils/audit.js';
 
 // --- Customers ---
 export async function listCustomers(req, res, next) {
@@ -35,6 +36,13 @@ export async function getCustomer(req, res, next) {
 export async function createCustomer(req, res, next) {
   try {
     const customer = await customerService.createCustomer(req.body);
+    logAudit(req, {
+      action: 'created',
+      module: 'crm',
+      entityType: 'Customer',
+      entityId: customer.id,
+      description: `Created customer ${customer.email}`,
+    }).catch(() => {});
     res.status(201).json(customer);
   } catch (err) {
     next(err);
@@ -44,6 +52,13 @@ export async function createCustomer(req, res, next) {
 export async function updateCustomer(req, res, next) {
   try {
     const customer = await customerService.updateCustomer(req.params.id, req.body);
+    logAudit(req, {
+      action: 'updated',
+      module: 'crm',
+      entityType: 'Customer',
+      entityId: req.params.id,
+      description: `Updated customer ${customer.email}`,
+    }).catch(() => {});
     res.status(200).json(customer);
   } catch (err) {
     next(err);
@@ -53,6 +68,13 @@ export async function updateCustomer(req, res, next) {
 export async function softDeleteCustomer(req, res, next) {
   try {
     const customer = await customerService.softDeleteCustomer(req.params.id);
+    logAudit(req, {
+      action: 'deleted',
+      module: 'crm',
+      entityType: 'Customer',
+      entityId: req.params.id,
+      description: `Deleted customer ${customer.email}`,
+    }).catch(() => {});
     res.status(200).json(customer);
   } catch (err) {
     next(err);
@@ -155,6 +177,13 @@ export async function getLead(req, res, next) {
 export async function createLead(req, res, next) {
   try {
     const lead = await leadService.createLead(req.body);
+    logAudit(req, {
+      action: 'created',
+      module: 'crm',
+      entityType: 'Lead',
+      entityId: lead.id,
+      description: `Created lead ${lead.id}`,
+    }).catch(() => {});
     res.status(201).json(lead);
   } catch (err) {
     next(err);
@@ -164,6 +193,13 @@ export async function createLead(req, res, next) {
 export async function updateLead(req, res, next) {
   try {
     const lead = await leadService.updateLead(req.params.id, req.body);
+    logAudit(req, {
+      action: 'updated',
+      module: 'crm',
+      entityType: 'Lead',
+      entityId: req.params.id,
+      description: `Updated lead ${req.params.id}`,
+    }).catch(() => {});
     res.status(200).json(lead);
   } catch (err) {
     next(err);
@@ -172,7 +208,15 @@ export async function updateLead(req, res, next) {
 
 export async function deleteLead(req, res, next) {
   try {
-    await leadService.deleteLead(req.params.id);
+    const { id } = req.params;
+    await leadService.deleteLead(id);
+    logAudit(req, {
+      action: 'deleted',
+      module: 'crm',
+      entityType: 'Lead',
+      entityId: id,
+      description: `Deleted lead ${id}`,
+    }).catch(() => {});
     res.status(200).json({ message: 'Lead deleted' });
   } catch (err) {
     next(err);

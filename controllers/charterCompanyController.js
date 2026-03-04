@@ -1,4 +1,5 @@
 import * as charterCompanyService from '../services/charterCompanyService.js';
+import { logAudit } from '../utils/audit.js';
 
 /**
  * GET /api/charter-companies
@@ -49,6 +50,13 @@ export async function getCharterCompanyById(req, res, next) {
 export async function createCharterCompany(req, res, next) {
   try {
     const company = await charterCompanyService.createCharterCompany(req.body);
+    logAudit(req, {
+      action: 'created',
+      module: 'charter-companies',
+      entityType: 'CharterCompany',
+      entityId: company.id,
+      description: `Created charter company ${company.name}`,
+    }).catch(() => {});
     res.status(201).json(company);
   } catch (err) {
     next(err);
@@ -64,6 +72,13 @@ export async function updateCharterCompany(req, res, next) {
   try {
     const { id } = req.params;
     const company = await charterCompanyService.updateCharterCompany(id, req.body);
+    logAudit(req, {
+      action: 'updated',
+      module: 'charter-companies',
+      entityType: 'CharterCompany',
+      entityId: id,
+      description: `Updated charter company ${company.name}`,
+    }).catch(() => {});
     res.status(200).json(company);
   } catch (err) {
     next(err);
@@ -78,6 +93,13 @@ export async function deleteCharterCompany(req, res, next) {
   try {
     const { id } = req.params;
     await charterCompanyService.deleteCharterCompany(id);
+    logAudit(req, {
+      action: 'deleted',
+      module: 'charter-companies',
+      entityType: 'CharterCompany',
+      entityId: id,
+      description: `Deleted charter company ${id}`,
+    }).catch(() => {});
     res.status(200).json({ message: 'Charter company deleted successfully' });
   } catch (err) {
     next(err);
