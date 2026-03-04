@@ -2,6 +2,8 @@ import crypto from 'node:crypto';
 import { prisma } from '../config/database.js';
 import { comparePassword, hashPassword } from '../utils/password.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
+
+/** @typedef {{ adminUserId?: string | null }} LogoutResult */
 import { sendPasswordResetEmail } from './emailService.js';
 import authConfig from '../config/auth.js';
 
@@ -109,11 +111,23 @@ export async function login({ email, password }, res = null) {
 
 /**
  * Logout: invalidate the given refresh token (delete by hash).
+ * If the token is valid, returns adminUserId for audit logging.
  * @param {string} refreshToken
+ * @returns {Promise<LogoutResult>} { adminUserId } when token was valid, {} otherwise
  */
 export async function logout(refreshToken) {
+  let adminUserId = null;
+  try {
+    const decoded = verifyRefreshToken(refreshToken);
+    adminUserId = decoded.sub;
+  } catch {
+    // Token invalid/expired; we still invalidate if it exists
+  }
+
   const tokenHash = hashRefreshToken(refreshToken);
   await prisma.refreshToken.deleteMany({ where: { tokenHash } });
+
+  return adminUserId ? { adminUserId } : {};
 }
 
 /**

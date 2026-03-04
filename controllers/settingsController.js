@@ -4,6 +4,7 @@ import * as emailTemplateService from '../services/emailTemplateService.js';
 import * as settingsNotificationService from '../services/settingsNotificationService.js';
 import * as settingsIntegrationService from '../services/settingsIntegrationService.js';
 import * as auditLogService from '../services/auditLogService.js';
+import { logAudit } from '../utils/audit.js';
 
 // --- General ---
 export async function getGeneralSettings(req, res, next) {
@@ -52,6 +53,13 @@ export async function getAdminUser(req, res, next) {
 export async function createAdminUser(req, res, next) {
   try {
     const user = await adminUserService.createAdminUser(req.body);
+    logAudit(req, {
+      action: 'created',
+      module: 'settings',
+      entityType: 'AdminUser',
+      entityId: user.id,
+      description: `Created admin user ${user.email}`,
+    }).catch(() => {});
     res.status(201).json(user);
   } catch (err) {
     next(err);
@@ -61,6 +69,13 @@ export async function createAdminUser(req, res, next) {
 export async function updateAdminUser(req, res, next) {
   try {
     const user = await adminUserService.updateAdminUser(req.params.id, req.body);
+    logAudit(req, {
+      action: 'updated',
+      module: 'settings',
+      entityType: 'AdminUser',
+      entityId: req.params.id,
+      description: `Updated admin user ${user.email}`,
+    }).catch(() => {});
     res.status(200).json(user);
   } catch (err) {
     next(err);
@@ -70,6 +85,13 @@ export async function updateAdminUser(req, res, next) {
 export async function deactivateAdminUser(req, res, next) {
   try {
     const user = await adminUserService.deactivateAdminUser(req.params.id);
+    logAudit(req, {
+      action: 'deleted',
+      module: 'settings',
+      entityType: 'AdminUser',
+      entityId: req.params.id,
+      description: `Deactivated admin user ${user.email}`,
+    }).catch(() => {});
     res.status(200).json(user);
   } catch (err) {
     next(err);

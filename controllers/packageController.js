@@ -1,4 +1,5 @@
 import * as packageService from '../services/packageService.js';
+import { logAudit } from '../utils/audit.js';
 
 /**
  * GET /api/packages
@@ -45,6 +46,13 @@ export async function createPackage(req, res, next) {
       files,
       { mediaType, caption, isCover, sortOrder }
     );
+    logAudit(req, {
+      action: 'created',
+      module: 'packages',
+      entityType: 'Package',
+      entityId: pkg.id,
+      description: `Created package ${pkg.name}`,
+    }).catch(() => {});
     res.status(201).json(pkg);
   } catch (err) {
     next(err);
@@ -73,6 +81,13 @@ export async function updatePackage(req, res, next) {
   try {
     const { id } = req.params;
     const pkg = await packageService.updatePackage(id, req.body);
+    logAudit(req, {
+      action: 'updated',
+      module: 'packages',
+      entityType: 'Package',
+      entityId: id,
+      description: `Updated package ${pkg.name}`,
+    }).catch(() => {});
     res.status(200).json(pkg);
   } catch (err) {
     next(err);
@@ -87,6 +102,13 @@ export async function deletePackage(req, res, next) {
   try {
     const { id } = req.params;
     await packageService.deletePackage(id);
+    logAudit(req, {
+      action: 'deleted',
+      module: 'packages',
+      entityType: 'Package',
+      entityId: id,
+      description: `Deleted package ${id}`,
+    }).catch(() => {});
     res.status(200).json({ message: 'Package deleted successfully' });
   } catch (err) {
     next(err);

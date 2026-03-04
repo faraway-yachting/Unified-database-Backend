@@ -1,4 +1,5 @@
 import * as regionService from '../services/regionService.js';
+import { logAudit } from '../utils/audit.js';
 
 /**
  * GET /api/regions
@@ -55,6 +56,13 @@ export async function getRegionById(req, res, next) {
 export async function createRegion(req, res, next) {
   try {
     const region = await regionService.createRegion(req.body);
+    logAudit(req, {
+      action: 'created',
+      module: 'regions',
+      entityType: 'Region',
+      entityId: region.id,
+      description: `Created region ${region.name}`,
+    }).catch(() => {});
     res.status(201).json(region);
   } catch (err) {
     next(err);
@@ -70,6 +78,13 @@ export async function updateRegion(req, res, next) {
   try {
     const { id } = req.params;
     const region = await regionService.updateRegion(id, req.body);
+    logAudit(req, {
+      action: 'updated',
+      module: 'regions',
+      entityType: 'Region',
+      entityId: id,
+      description: `Updated region ${region.name}`,
+    }).catch(() => {});
     res.status(200).json(region);
   } catch (err) {
     next(err);
@@ -84,6 +99,13 @@ export async function deleteRegion(req, res, next) {
   try {
     const { id } = req.params;
     await regionService.deleteRegion(id);
+    logAudit(req, {
+      action: 'deleted',
+      module: 'regions',
+      entityType: 'Region',
+      entityId: id,
+      description: `Deleted region ${id}`,
+    }).catch(() => {});
     res.status(200).json({ message: 'Region deleted successfully' });
   } catch (err) {
     next(err);
