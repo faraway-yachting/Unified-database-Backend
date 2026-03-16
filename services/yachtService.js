@@ -59,6 +59,8 @@ export async function listYachts(options = {}) {
     includeCompany = true,
     includeRegion = true,
     includeImages = false,
+    includeTags = true,
+    includeTranslations = true,
   } = options;
 
   const skip = (page - 1) * limit;
@@ -105,6 +107,16 @@ export async function listYachts(options = {}) {
       orderBy: { sortOrder: 'asc' },
     };
   }
+  if (includeTags) {
+    include.tags = {
+      orderBy: [{ locale: 'asc' }, { tag: 'asc' }],
+    };
+  }
+  if (includeTranslations) {
+    include.translations = {
+      orderBy: { locale: 'asc' },
+    };
+  }
 
   const [yachts, total] = await Promise.all([
     prisma.yacht.findMany({
@@ -144,6 +156,8 @@ export async function getYachtById(id, options = {}) {
     includeRegion = true,
     includeImages = true,
     includeAmenities = false,
+    includeTags = true,
+    includeTranslations = true,
   } = options;
 
   const include = {};
@@ -168,6 +182,16 @@ export async function getYachtById(id, options = {}) {
   }
   if (includeAmenities) {
     include.amenities = true;
+  }
+  if (includeTags) {
+    include.tags = {
+      orderBy: [{ locale: 'asc' }, { tag: 'asc' }],
+    };
+  }
+  if (includeTranslations) {
+    include.translations = {
+      orderBy: { locale: 'asc' },
+    };
   }
 
   const yacht = await prisma.yacht.findUnique({
@@ -209,6 +233,12 @@ export async function getYachtDetail(id) {
       region: true,
       images: {
         orderBy: { sortOrder: 'asc' },
+      },
+      tags: {
+        orderBy: [{ locale: 'asc' }, { tag: 'asc' }],
+      },
+      translations: {
+        orderBy: { locale: 'asc' },
       },
       amenities: {
         orderBy: [

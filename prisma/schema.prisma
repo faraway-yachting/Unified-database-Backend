@@ -81,6 +81,36 @@ model Yacht {
   id                String   @id @default(uuid()) @db.Uuid
   companyId         String   @map("company_id") @db.Uuid
   name              String   @db.VarChar(255)
+  sourceId          String?  @unique @map("source_id") @db.VarChar(24)
+  title             String?  @db.VarChar(255)
+  slug              String?  @unique @db.VarChar(255)
+  charterType       String?  @map("charter_type") @db.VarChar(50)
+  boatType          String?  @map("boat_type") @db.VarChar(50)
+  price             String?  @db.VarChar(50)
+  capacity          String?  @db.VarChar(100)
+  length            String?  @db.VarChar(50)
+  lengthRange       String?  @map("length_range") @db.VarChar(50)
+  cabins            String?  @db.VarChar(20)
+  bathrooms         String?  @db.VarChar(20)
+  passengerDayTrip  String?  @map("passenger_day_trip") @db.VarChar(20)
+  passengerOvernight String? @map("passenger_overnight") @db.VarChar(20)
+  guests            String?  @db.VarChar(20)
+  guestsRange       String?  @map("guests_range") @db.VarChar(20)
+  dayTripPrice      String?  @map("day_trip_price") @db.VarChar(50)
+  overnightPrice    String?  @map("overnight_price") @db.VarChar(50)
+  daytripPriceEuro  String?  @map("daytrip_price_euro") @db.VarChar(50)
+  primaryImage      String?  @map("primary_image") @db.VarChar(500)
+  videoLink         String?  @map("video_link") @db.VarChar(500)
+  badge             String?  @db.VarChar(100)
+  design            String?  @db.VarChar(255)
+  built             String?  @db.VarChar(100)
+  cruisingSpeed     String?  @map("cruising_speed") @db.VarChar(100)
+  lengthOverall     String?  @map("length_overall") @db.VarChar(100)
+  fuelCapacity      String?  @map("fuel_capacity") @db.VarChar(100)
+  waterCapacity     String?  @map("water_capacity") @db.VarChar(100)
+  code              String?  @db.VarChar(50)
+  publicationStatus String?  @map("publication_status") @db.VarChar(30)
+  displayOrder      Int?     @map("display_order")
   type              String   @db.VarChar(50) // sailboat | motor | catamaran | gulet
   lengthM           Decimal? @map("length_m") @db.Decimal(6, 2)
   beamM             Decimal? @map("beam_m") @db.Decimal(6, 2)
@@ -101,6 +131,8 @@ model Yacht {
   company   CharterCompany   @relation(fields: [companyId], references: [id])
   region    Region           @relation(fields: [regionId], references: [id])
   images    YachtImage[]
+  tags      YachtTag[]
+  translations YachtTranslation[]
   amenities YachtAmenity[]
   documents YachtDocument[]
   maintenance YachtMaintenance[]
@@ -124,6 +156,40 @@ model YachtImage {
   yacht Yacht @relation(fields: [yachtId], references: [id], onDelete: Cascade)
 
   @@map("yacht_images")
+}
+
+model YachtTag {
+  id        String   @id @default(uuid()) @db.Uuid
+  yachtId   String   @map("yacht_id") @db.Uuid
+  locale    String?  @db.VarChar(10)
+  tag       String   @db.VarChar(100)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  yacht Yacht @relation(fields: [yachtId], references: [id], onDelete: Cascade)
+
+  @@unique([yachtId, locale, tag])
+  @@map("yacht_tags")
+}
+
+model YachtTranslation {
+  id               String   @id @default(uuid()) @db.Uuid
+  yachtId          String   @map("yacht_id") @db.Uuid
+  locale           String   @db.VarChar(10)
+  slug             String?  @db.VarChar(255)
+  title            String?  @db.VarChar(255)
+  dayCharter       String?  @map("day_charter") @db.Text
+  overnightCharter String?  @map("overnight_charter") @db.Text
+  aboutThisBoat    String?  @map("about_this_boat") @db.Text
+  specifications   String?  @db.Text
+  boatLayout       String?  @map("boat_layout") @db.Text
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  yacht Yacht @relation(fields: [yachtId], references: [id], onDelete: Cascade)
+
+  @@unique([yachtId, locale])
+  @@unique([locale, slug])
+  @@map("yacht_translations")
 }
 
 model YachtAmenity {
