@@ -122,9 +122,10 @@ export async function listYachts(options = {}) {
     prisma.yacht.findMany({
       where,
       include: Object.keys(include).length > 0 ? include : undefined,
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: [
+        { displayOrder: { sort: 'asc', nulls: 'last' } },
+        { createdAt: 'desc' },
+      ],
       skip,
       take: limit,
     }),
@@ -399,12 +400,8 @@ export async function createYacht(data) {
  * @param {object} data - Partial yacht data
  * @returns {Promise<object>}
  */
-export async function updateYacht(id, data) {
-  // Check if yacht exists
-  const existingYacht = await prisma.yacht.findUnique({
-    where: { id },
-  });
-
+export async function updateYacht(id, data, files = {}) {
+  const existingYacht = await prisma.yacht.findUnique({ where: { id } });
   if (!existingYacht) {
     const err = new Error('Yacht not found');
     err.status = 404;
@@ -412,26 +409,59 @@ export async function updateYacht(id, data) {
   }
 
   const {
-    companyId,
-    name,
-    type,
-    lengthM,
-    beamM,
-    capacityGuests,
-    capacityCrew,
-    yearBuilt,
-    engineType,
-    engineHp,
-    cruiseSpeedKnots,
-    fuelCapacityL,
-    homePort,
-    regionId,
-    isActive,
+    companyId, name, type,
+    lengthM, beamM, capacityGuests, capacityCrew, yearBuilt,
+    engineType, engineHp, cruiseSpeedKnots, fuelCapacityL, homePort, regionId, isActive,
+    title, slug, charterType,
+    boat_type, price_category, capacity, length, length_range,
+    cabins, bathrooms, passenger_day_trip, passenger_overnight,
+    guests, guests_range, day_trip_price, overnight_price, daytrip_price_euro,
+    video_link, badge, design, built, cruising_speed, length_overall,
+    fuel_capacity, water_capacity, code, primary_image, display_order,
+    day_charter, overnight_charter, about_this_boat, specifications, boat_layout,
   } = data;
 
-  const updateData = {};
+  const str = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : undefined;
 
+  const updateData = {};
   if (name !== undefined) updateData.name = name;
+  if (title !== undefined) updateData.title = str(title) ?? null;
+  if (slug !== undefined) updateData.slug = str(slug) ?? null;
+  if (charterType !== undefined) updateData.charterType = str(charterType) ?? null;
+  if (boat_type !== undefined) updateData.boatType = str(boat_type) ?? null;
+  if (price_category !== undefined) updateData.price = str(price_category) ?? null;
+  if (capacity !== undefined) updateData.capacity = str(capacity) ?? null;
+  if (length !== undefined) updateData.length = str(length) ?? null;
+  if (length_range !== undefined) updateData.lengthRange = str(length_range) ?? null;
+  if (cabins !== undefined) updateData.cabins = str(cabins) ?? null;
+  if (bathrooms !== undefined) updateData.bathrooms = str(bathrooms) ?? null;
+  if (passenger_day_trip !== undefined) updateData.passengerDayTrip = str(passenger_day_trip) ?? null;
+  if (passenger_overnight !== undefined) updateData.passengerOvernight = str(passenger_overnight) ?? null;
+  if (guests !== undefined) updateData.guests = str(guests) ?? null;
+  if (guests_range !== undefined) updateData.guestsRange = str(guests_range) ?? null;
+  if (day_trip_price !== undefined) updateData.dayTripPrice = str(day_trip_price) ?? null;
+  if (overnight_price !== undefined) updateData.overnightPrice = str(overnight_price) ?? null;
+  if (daytrip_price_euro !== undefined) updateData.daytripPriceEuro = str(daytrip_price_euro) ?? null;
+  if (video_link !== undefined) updateData.videoLink = str(video_link) ?? null;
+  if (badge !== undefined) updateData.badge = str(badge) ?? null;
+  if (design !== undefined) updateData.design = str(design) ?? null;
+  if (built !== undefined) updateData.built = str(built) ?? null;
+  if (cruising_speed !== undefined) updateData.cruisingSpeed = str(cruising_speed) ?? null;
+  if (length_overall !== undefined) updateData.lengthOverall = str(length_overall) ?? null;
+  if (fuel_capacity !== undefined) updateData.fuelCapacity = str(fuel_capacity) ?? null;
+  if (water_capacity !== undefined) updateData.waterCapacity = str(water_capacity) ?? null;
+  if (code !== undefined) updateData.code = str(code) ?? null;
+  if (display_order !== undefined) updateData.displayOrder = (display_order !== '' && display_order !== null) ? parseInt(display_order, 10) : null;
+  if (primary_image !== undefined && typeof primary_image === 'string' && primary_image.length > 0) {
+    if (primary_image.startsWith('http')) {
+      updateData.primaryImage = primary_image;
+    } else if (primary_image.startsWith('s3://')) {
+      const bucket = process.env.AWS_S3_BUCKET || 'faraway-admin-bucket';
+      const region = process.env.AWS_REGION || 'ap-southeast-1';
+      const key = primary_image.replace(`s3://${bucket}/`, '');
+      updateData.primaryImage = `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+    }
+  }
   if (lengthM !== undefined) updateData.lengthM = lengthM ? parseFloat(lengthM) : null;
   if (beamM !== undefined) updateData.beamM = beamM ? parseFloat(beamM) : null;
   if (capacityGuests !== undefined) updateData.capacityGuests = parseInt(capacityGuests, 10);
@@ -444,7 +474,6 @@ export async function updateYacht(id, data) {
   if (homePort !== undefined) updateData.homePort = homePort;
   if (isActive !== undefined) updateData.isActive = isActive === 'true' || isActive === true;
 
-  // Validate and update type
   if (type !== undefined) {
     const validTypes = ['sailboat', 'motor', 'catamaran', 'gulet'];
     if (!validTypes.includes(type)) {
@@ -455,11 +484,8 @@ export async function updateYacht(id, data) {
     updateData.type = type;
   }
 
-  // Handle companyId update
   if (companyId !== undefined && companyId !== existingYacht.companyId) {
-    const company = await prisma.charterCompany.findUnique({
-      where: { id: companyId },
-    });
+    const company = await prisma.charterCompany.findUnique({ where: { id: companyId } });
     if (!company) {
       const err = new Error(`Charter company with id "${companyId}" not found`);
       err.status = 400;
@@ -468,11 +494,8 @@ export async function updateYacht(id, data) {
     updateData.companyId = companyId;
   }
 
-  // Handle regionId update
   if (regionId !== undefined && regionId !== existingYacht.regionId) {
-    const region = await prisma.region.findUnique({
-      where: { id: regionId },
-    });
+    const region = await prisma.region.findUnique({ where: { id: regionId } });
     if (!region) {
       const err = new Error(`Region with id "${regionId}" not found`);
       err.status = 400;
@@ -481,26 +504,68 @@ export async function updateYacht(id, data) {
     updateData.regionId = regionId;
   }
 
+  const hasTranslationData = [day_charter, overnight_charter, about_this_boat, specifications, boat_layout, title, slug].some(v => v !== undefined);
+
   const yacht = await prisma.yacht.update({
     where: { id },
     data: updateData,
     include: {
-      company: {
-        select: {
-          id: true,
-          name: true,
-          logoUrl: true,
-        },
-      },
-      region: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-        },
-      },
+      company: { select: { id: true, name: true, logoUrl: true } },
+      region: { select: { id: true, name: true, slug: true } },
+      translations: true,
+      tags: true,
     },
   });
+
+  if (hasTranslationData) {
+    const translationData = {};
+    if (title !== undefined) translationData.title = str(title) ?? null;
+    const slugVal = str(slug) ?? null;
+    if (slug !== undefined) translationData.slug = slugVal;
+    if (day_charter !== undefined) translationData.dayCharter = day_charter || null;
+    if (overnight_charter !== undefined) translationData.overnightCharter = overnight_charter || null;
+    if (about_this_boat !== undefined) translationData.aboutThisBoat = about_this_boat || null;
+    if (specifications !== undefined) translationData.specifications = specifications || null;
+    if (boat_layout !== undefined) translationData.boatLayout = boat_layout || null;
+    const existing = await prisma.yachtTranslation.findUnique({
+      where: { yachtId_locale: { yachtId: id, locale: 'en' } },
+    });
+    if (existing) {
+      await prisma.yachtTranslation.update({
+        where: { yachtId_locale: { yachtId: id, locale: 'en' } },
+        data: translationData,
+      });
+    } else {
+      await prisma.yachtTranslation.create({
+        data: { yachtId: id, locale: 'en', ...translationData },
+      });
+    }
+  }
+
+  const rawTags = data['tags[]'];
+  if (rawTags !== undefined) {
+    const tagList = Array.isArray(rawTags) ? rawTags : rawTags ? [rawTags] : [];
+    await prisma.yachtTag.deleteMany({ where: { yachtId: id, locale: 'en' } });
+    if (tagList.length > 0) {
+      await prisma.yachtTag.createMany({
+        data: tagList.map(tag => ({ yachtId: id, locale: 'en', tag: String(tag).trim() })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
+  if (files.primary_image) {
+    const { uploadFile: uploadToS3, generateS3Key } = await import('./s3Service.js');
+    const file = files.primary_image;
+    const s3Key = generateS3Key(file.originalname, `yachts/${id}/primary`);
+    const result = await uploadToS3(file.buffer, s3Key, file.mimetype, {});
+    await prisma.yacht.update({ where: { id }, data: { primaryImage: result.url } });
+  }
+
+  if (files.gallery_images && files.gallery_images.length > 0) {
+    const { uploadYachtImages } = await import('./yachtImageService.js');
+    await uploadYachtImages(id, files.gallery_images, { isCover: false });
+  }
 
   return yacht;
 }

@@ -3,8 +3,12 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { connectDB, disconnectDB } from './config/database.js';
 import routes from './routes/index.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,6 +31,9 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Serve locally uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API routes
 app.use('/api', routes);

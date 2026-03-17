@@ -29,15 +29,18 @@ export async function uploadFile(fileContent, key, contentType, options = {}) {
     throw new Error('AWS_S3_BUCKET is not configured');
   }
 
-  const command = new PutObjectCommand({
+  const putParams = {
     Bucket: s3Config.bucket,
     Key: key,
     Body: fileContent,
     ContentType: contentType,
-    ACL: options.acl || s3Config.defaultAcl,
     Metadata: options.metadata || {},
-    CacheControl: options.cacheControl,
-  });
+  };
+  if (options.cacheControl) putParams.CacheControl = options.cacheControl;
+  const acl = options.acl || s3Config.defaultAcl;
+  if (acl && acl !== 'private' && acl !== '') putParams.ACL = acl;
+
+  const command = new PutObjectCommand(putParams);
 
   await s3Client.send(command);
 

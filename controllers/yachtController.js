@@ -105,7 +105,11 @@ export async function createYacht(req, res, next) {
 export async function updateYacht(req, res, next) {
   try {
     const { id } = req.params;
-    const yacht = await yachtService.updateYacht(id, req.body);
+    const files = {
+      primary_image: req.files?.primary_image?.[0] ?? req.file ?? null,
+      gallery_images: req.files?.gallery_images ?? [],
+    };
+    const yacht = await yachtService.updateYacht(id, req.body, files);
     logAudit(req, {
       action: 'updated',
       module: 'yachts',

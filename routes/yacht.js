@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import * as yachtController from '../controllers/yachtController.js';
 import * as yachtImageController from '../controllers/yachtImageController.js';
 import * as yachtAmenityController from '../controllers/yachtAmenityController.js';
@@ -6,6 +7,8 @@ import * as yachtDocumentController from '../controllers/yachtDocumentController
 import * as yachtMaintenanceController from '../controllers/yachtMaintenanceController.js';
 import * as yachtAvailabilityController from '../controllers/yachtAvailabilityController.js';
 import { requireAuth } from '../middleware/auth.js';
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 
@@ -47,7 +50,7 @@ router.delete('/:id/availability/:blockId', requireAuth, yachtAvailabilityContro
 router.get('/:id/detail', requireAuth, yachtController.getYachtDetail);
 
 router.get('/:id', requireAuth, yachtController.getYachtById);
-router.patch('/:id', requireAuth, yachtController.updateYacht);
+router.patch('/:id', requireAuth, upload.fields([{ name: 'primary_image', maxCount: 1 }, { name: 'gallery_images', maxCount: 30 }]), yachtController.updateYacht);
 router.delete('/:id', requireAuth, yachtController.softDeleteYacht);
 router.patch('/:id/status', requireAuth, yachtController.updateYachtStatus);
 
