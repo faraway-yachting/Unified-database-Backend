@@ -24,6 +24,14 @@ async function attachPresignedUrlsToYachts(yachts) {
   if (!s3Config.bucket) return yachts;
   await Promise.all(
     yachts.map(async (yacht) => {
+      if (yacht?.primaryImage) {
+        const key = extractS3KeyFromUrl(yacht.primaryImage);
+        if (key) {
+          try {
+            yacht.primaryImage = await getPresignedUrl(key);
+          } catch (_) {}
+        }
+      }
       if (!yacht?.images?.length) return;
       await Promise.all(
         yacht.images.map(async (img) => {
@@ -31,9 +39,7 @@ async function attachPresignedUrlsToYachts(yachts) {
           if (!key) return;
           try {
             img.imageUrl = await getPresignedUrl(key);
-          } catch (_) {
-            // Keep original URL if signing fails
-          }
+          } catch (_) {}
         })
       );
     })
@@ -277,9 +283,7 @@ export async function getYachtDetail(id) {
     throw err;
   }
 
-  if (yacht.images?.length) {
-    await attachPresignedUrlsToYachts([yacht]);
-  }
+  await attachPresignedUrlsToYachts([yacht]);
 
   return yacht;
 }
