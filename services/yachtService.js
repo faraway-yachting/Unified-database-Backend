@@ -517,11 +517,11 @@ export async function updateYacht(id, data, files = {}) {
     if (title !== undefined) translationData.title = str(title) ?? null;
     const slugVal = str(slug) ?? null;
     if (slug !== undefined) translationData.slug = slugVal;
-    if (day_charter !== undefined) translationData.dayCharter = day_charter || null;
-    if (overnight_charter !== undefined) translationData.overnightCharter = overnight_charter || null;
-    if (about_this_boat !== undefined) translationData.aboutThisBoat = about_this_boat || null;
-    if (specifications !== undefined) translationData.specifications = specifications || null;
-    if (boat_layout !== undefined) translationData.boatLayout = boat_layout || null;
+    if (day_charter !== undefined && day_charter !== '') translationData.dayCharter = day_charter;
+    if (overnight_charter !== undefined && overnight_charter !== '') translationData.overnightCharter = overnight_charter;
+    if (about_this_boat !== undefined && about_this_boat !== '') translationData.aboutThisBoat = about_this_boat;
+    if (specifications !== undefined && specifications !== '') translationData.specifications = specifications;
+    if (boat_layout !== undefined && boat_layout !== '') translationData.boatLayout = boat_layout;
     const existing = await prisma.yachtTranslation.findUnique({
       where: { yachtId_locale: { yachtId: id, locale: 'en' } },
     });
