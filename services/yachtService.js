@@ -567,7 +567,15 @@ export async function updateYacht(id, data, files = {}) {
     await uploadYachtImages(id, files.gallery_images, { isCover: false });
   }
 
-  return yacht;
+  return prisma.yacht.findUnique({
+    where: { id },
+    include: {
+      company: { select: { id: true, name: true, logoUrl: true } },
+      region: { select: { id: true, name: true, slug: true } },
+      translations: true,
+      tags: true,
+    },
+  });
 }
 
 /**
