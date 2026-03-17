@@ -1,5 +1,5 @@
 import { prisma } from '../config/database.js';
-import { getPresignedUrl, s3Config } from './s3Service.js';
+import { s3Config } from './s3Service.js';
 
 function extractS3KeyFromUrl(url) {
   if (!url) return null;
@@ -20,30 +20,28 @@ function extractS3KeyFromUrl(url) {
   }
 }
 
+function resolveImageUrl(url) {
+  if (!url) return url;
+  if (url.startsWith('https://')) return url;
+  if (url.startsWith('s3://') && s3Config.publicUrl) {
+    const key = extractS3KeyFromUrl(url);
+    return key ? `${s3Config.publicUrl.replace(/\/$/, '')}/${key}` : url;
+  }
+  return url;
+}
+
 async function attachPresignedUrlsToYachts(yachts) {
   if (!s3Config.bucket) return yachts;
-  await Promise.all(
-    yachts.map(async (yacht) => {
-      if (yacht?.primaryImage) {
-        const key = extractS3KeyFromUrl(yacht.primaryImage);
-        if (key) {
-          try {
-            yacht.primaryImage = await getPresignedUrl(key);
-          } catch (_) {}
-        }
-      }
-      if (!yacht?.images?.length) return;
-      await Promise.all(
-        yacht.images.map(async (img) => {
-          const key = extractS3KeyFromUrl(img.imageUrl);
-          if (!key) return;
-          try {
-            img.imageUrl = await getPresignedUrl(key);
-          } catch (_) {}
-        })
-      );
-    })
-  );
+  yachts.forEach((yacht) => {
+    if (yacht?.primaryImage) {
+      yacht.primaryImage = resolveImageUrl(yacht.primaryImage);
+    }
+    if (yacht?.images?.length) {
+      yacht.images.forEach((img) => {
+        img.imageUrl = resolveImageUrl(img.imageUrl);
+      });
+    }
+  });
   return yachts;
 }
 
@@ -456,15 +454,8 @@ export async function updateYacht(id, data, files = {}) {
   if (water_capacity !== undefined) updateData.waterCapacity = str(water_capacity) ?? null;
   if (code !== undefined) updateData.code = str(code) ?? null;
   if (display_order !== undefined) updateData.displayOrder = (display_order !== '' && display_order !== null) ? parseInt(display_order, 10) : null;
-  if (primary_image !== undefined && typeof primary_image === 'string' && primary_image.length > 0) {
-    if (primary_image.startsWith('http')) {
-      updateData.primaryImage = primary_image;
-    } else if (primary_image.startsWith('s3://')) {
-      const bucket = process.env.AWS_S3_BUCKET || 'faraway-admin-bucket';
-      const region = process.env.AWS_REGION || 'ap-southeast-1';
-      const key = primary_image.replace(`s3://${bucket}/`, '');
-      updateData.primaryImage = `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
-    }
+  if (primary_image !== undefined && typeof primary_image === 'string' && primary_image.startsWith('s3://')) {
+    updateData.primaryImage = primary_image;
   }
   if (lengthM !== undefined) updateData.lengthM = lengthM ? parseFloat(lengthM) : null;
   if (beamM !== undefined) updateData.beamM = beamM ? parseFloat(beamM) : null;
