@@ -557,6 +557,25 @@ export async function updateYacht(id, data, files = {}) {
     await prisma.yacht.update({ where: { id }, data: { primaryImage: result.url } });
   }
 
+  if (data['gallery_images_managed'] === 'true') {
+    const rawUrls = data['gallery_image_urls'];
+    const survivingUrls = rawUrls ? (Array.isArray(rawUrls) ? rawUrls : [rawUrls]) : [];
+    const survivingKeys = new Set(survivingUrls.map(u => extractS3KeyFromUrl(u.split('?')[0]) ?? u.split('?')[0]));
+    const currentImages = await prisma.yachtImage.findMany({ where: { yachtId: id } });
+    const toDelete = currentImages.filter(img => {
+      const key = extractS3KeyFromUrl(img.imageUrl.split('?')[0]) ?? img.imageUrl.split('?')[0];
+      return !survivingKeys.has(key);
+    });
+    if (toDelete.length > 0) {
+      const { deleteFile: deleteS3File } = await import('./s3Service.js');
+      for (const img of toDelete) {
+        const s3Key = extractS3KeyFromUrl(img.imageUrl);
+        if (s3Key) { try { await deleteS3File(s3Key); } catch (_) {} }
+        await prisma.yachtImage.delete({ where: { id: img.id } });
+      }
+    }
+  }
+
   if (files.gallery_images && files.gallery_images.length > 0) {
     const { uploadYachtImages } = await import('./yachtImageService.js');
     await uploadYachtImages(id, files.gallery_images, { isCover: false });
