@@ -22,10 +22,12 @@ function extractS3KeyFromUrl(url) {
 
 function resolveImageUrl(url) {
   if (!url) return url;
-  if (url.startsWith('https://')) return url;
-  if (url.startsWith('s3://') && s3Config.publicUrl) {
+  if (url.startsWith('https://') || url.startsWith('http://')) return url;
+  if (url.startsWith('s3://')) {
     const key = extractS3KeyFromUrl(url);
-    return key ? `${s3Config.publicUrl.replace(/\/$/, '')}/${key}` : url;
+    if (!key) return url;
+    if (s3Config.publicUrl) return `${s3Config.publicUrl.replace(/\/$/, '')}/${key}`;
+    if (s3Config.bucket) return `https://${s3Config.bucket}.s3.${s3Config.region || 'us-east-1'}.amazonaws.com/${key}`;
   }
   return url;
 }
@@ -136,9 +138,7 @@ export async function listYachts(options = {}) {
     prisma.yacht.count({ where }),
   ]);
 
-  if (includeImages) {
-    await attachPresignedUrlsToYachts(yachts);
-  }
+  await attachPresignedUrlsToYachts(yachts);
 
   return {
     yachts,
@@ -210,9 +210,7 @@ export async function getYachtById(id, options = {}) {
     throw err;
   }
 
-  if (includeImages && yacht.images?.length) {
-    await attachPresignedUrlsToYachts([yacht]);
-  }
+  await attachPresignedUrlsToYachts([yacht]);
 
   return yacht;
 }
