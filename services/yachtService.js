@@ -199,11 +199,16 @@ export async function getYachtById(id, options = {}) {
     };
   }
 
-  const yacht = await prisma.yacht.findUnique({
-    where: { id },
-    include: Object.keys(include).length > 0 ? include : undefined,
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const inc = Object.keys(include).length > 0 ? include : undefined;
+  let yacht = await prisma.yacht.findUnique({
+    where: isUuid ? { id } : { slug: id },
+    include: inc,
   });
-
+  if (!yacht && !isUuid) {
+    const tr = await prisma.yachtTranslation.findFirst({ where: { slug: id } });
+    if (tr) yacht = await prisma.yacht.findUnique({ where: { id: tr.yachtId }, include: inc });
+  }
   if (!yacht) {
     const err = new Error('Yacht not found');
     err.status = 404;

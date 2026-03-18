@@ -105,12 +105,6 @@ export async function createYacht(req, res, next) {
 export async function updateYacht(req, res, next) {
   try {
     const { id } = req.params;
-    console.log(`[YACHT UPDATE] id=${id}`);
-    console.log(`[YACHT UPDATE] Content-Type: ${req.headers['content-type']}`);
-    console.log(`[YACHT UPDATE] req.files keys:`, req.files ? Object.keys(req.files) : 'null');
-    console.log(`[YACHT UPDATE] req.files.primary_image:`, req.files?.primary_image ? `${req.files.primary_image.length} file(s), size=${req.files.primary_image[0]?.size}` : 'none');
-    console.log(`[YACHT UPDATE] req.files.gallery_images:`, req.files?.gallery_images ? `${req.files.gallery_images.length} file(s)` : 'none');
-    console.log(`[YACHT UPDATE] body keys:`, Object.keys(req.body));
     const files = {
       primary_image: req.files?.primary_image?.[0] ?? req.file ?? null,
       gallery_images: req.files?.gallery_images ?? [],
