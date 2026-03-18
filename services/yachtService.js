@@ -550,11 +550,13 @@ export async function updateYacht(id, data, files = {}) {
   }
 
   if (files.primary_image) {
-    const { uploadFile: uploadToS3, generateS3Key } = await import('./s3Service.js');
+    const { uploadFile: uploadToS3, generateS3Key, deleteFile: deleteS3File } = await import('./s3Service.js');
+    const oldKey = existingYacht.primaryImage ? extractS3KeyFromUrl(existingYacht.primaryImage) : null;
     const file = files.primary_image;
     const s3Key = generateS3Key(file.originalname, `yachts/${id}/primary`);
     const result = await uploadToS3(file.buffer, s3Key, file.mimetype, {});
     await prisma.yacht.update({ where: { id }, data: { primaryImage: result.url } });
+    if (oldKey) { try { await deleteS3File(oldKey); } catch (_) {} }
   }
 
   if (data['gallery_images_managed'] === 'true') {
