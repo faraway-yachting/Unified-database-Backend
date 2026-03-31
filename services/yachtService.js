@@ -32,6 +32,22 @@ function resolveImageUrl(url) {
   return url;
 }
 
+function flattenTags(yachts) {
+  yachts.forEach(y => {
+    if (Array.isArray(y.tags)) {
+      y.tags = y.tags.map(t => t.tag);
+    }
+  });
+}
+
+function flattenYachtTags(yachts) {
+  yachts.forEach((y) => {
+    if (Array.isArray(y.tags)) {
+      y.tags = y.tags.map((t) => t.tag);
+    }
+  });
+}
+
 async function attachPresignedUrlsToYachts(yachts) {
   if (!s3Config.bucket) return yachts;
   yachts.forEach((yacht) => {
@@ -56,6 +72,8 @@ export async function listYachts(options = {}) {
   const {
     regionId,
     type,
+    charterType,
+    tags,
     status,
     minCapacity,
     maxCapacity,
@@ -74,6 +92,11 @@ export async function listYachts(options = {}) {
 
   if (regionId) where.regionId = regionId;
   if (type) where.type = type;
+  if (charterType) where.charterType = charterType;
+  if (tags) {
+    const tagList = Array.isArray(tags) ? tags : [tags];
+    where.tags = { some: { tag: { in: tagList } } };
+  }
   if (status) where.status = status;
   if (isActive !== undefined) where.isActive = isActive === 'true' || isActive === true;
 
@@ -322,7 +345,7 @@ export async function createYacht(data) {
   }
 
   // Validate type
-  const validTypes = ['sailboat', 'motor', 'catamaran', 'gulet'];
+  const validTypes = ['bareboat', 'crewed'];
   if (!validTypes.includes(type)) {
     const err = new Error(`Type must be one of: ${validTypes.join(', ')}`);
     err.status = 400;
@@ -473,7 +496,7 @@ export async function updateYacht(id, data, files = {}) {
   if (isActive !== undefined) updateData.isActive = isActive === 'true' || isActive === true;
 
   if (type !== undefined) {
-    const validTypes = ['sailboat', 'motor', 'catamaran', 'gulet'];
+    const validTypes = ['bareboat', 'crewed'];
     if (!validTypes.includes(type)) {
       const err = new Error(`Type must be one of: ${validTypes.join(', ')}`);
       err.status = 400;
@@ -504,16 +527,33 @@ export async function updateYacht(id, data, files = {}) {
 
   const hasTranslationData = [day_charter, overnight_charter, about_this_boat, specifications, boat_layout, title, slug].some(v => v !== undefined);
 
-  const yacht = await prisma.yacht.update({
-    where: { id },
-    data: updateData,
-    include: {
-      company: { select: { id: true, name: true, logoUrl: true } },
-      region: { select: { id: true, name: true, slug: true } },
-      translations: true,
-      tags: true,
-    },
-  });
+  // Only update the main yacht record for the base locale (en), not for translations
+  const translationLocale = data.locale && data.locale !== '' ? data.locale : 'en';
+  const isBaseLocale = translationLocale === 'en';
+
+  let yacht;
+  if (isBaseLocale) {
+    yacht = await prisma.yacht.update({
+      where: { id },
+      data: updateData,
+      include: {
+        company: { select: { id: true, name: true, logoUrl: true } },
+        region: { select: { id: true, name: true, slug: true } },
+        translations: true,
+        tags: true,
+      },
+    });
+  } else {
+    yacht = await prisma.yacht.findUnique({
+      where: { id },
+      include: {
+        company: { select: { id: true, name: true, logoUrl: true } },
+        region: { select: { id: true, name: true, slug: true } },
+        translations: true,
+        tags: true,
+      },
+    });
+  }
 
   if (hasTranslationData) {
     const translationData = {};
@@ -526,16 +566,16 @@ export async function updateYacht(id, data, files = {}) {
     if (specifications !== undefined && specifications !== '') translationData.specifications = specifications;
     if (boat_layout !== undefined && boat_layout !== '') translationData.boatLayout = boat_layout;
     const existing = await prisma.yachtTranslation.findUnique({
-      where: { yachtId_locale: { yachtId: id, locale: 'en' } },
+      where: { yachtId_locale: { yachtId: id, locale: translationLocale } },
     });
     if (existing) {
       await prisma.yachtTranslation.update({
-        where: { yachtId_locale: { yachtId: id, locale: 'en' } },
+        where: { yachtId_locale: { yachtId: id, locale: translationLocale } },
         data: translationData,
       });
     } else {
       await prisma.yachtTranslation.create({
-        data: { yachtId: id, locale: 'en', ...translationData },
+        data: { yachtId: id, locale: translationLocale, ...translationData },
       });
     }
   }
@@ -556,7 +596,7 @@ export async function updateYacht(id, data, files = {}) {
     const { uploadFile: uploadToS3, generateS3Key, deleteFile: deleteS3File } = await import('./s3Service.js');
     const oldKey = existingYacht.primaryImage ? extractS3KeyFromUrl(existingYacht.primaryImage) : null;
     const file = files.primary_image;
-    const s3Key = generateS3Key(file.originalname, `yachts/${id}/primary`);
+    const s3Key = generateS3Key(file.originalname, `yachts/Primary-Images/${id}`);
     const result = await uploadToS3(file.buffer, s3Key, file.mimetype, {});
     await prisma.yacht.update({ where: { id }, data: { primaryImage: result.url } });
     if (oldKey) { try { await deleteS3File(oldKey); } catch (_) {} }

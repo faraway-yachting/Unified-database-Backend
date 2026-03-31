@@ -119,7 +119,8 @@ export async function logout(refreshToken) {
   let adminUserId = null;
   try {
     const decoded = verifyRefreshToken(refreshToken);
-    adminUserId = decoded.sub;
+    const uid = decoded.sub ?? decoded.id;
+    adminUserId = uid != null ? String(uid) : null;
   } catch {
     // Token invalid/expired; we still invalidate if it exists
   }
@@ -147,9 +148,17 @@ export async function refresh(refreshToken, res = null) {
     throw err;
   }
 
+  const rawId = decoded.sub ?? decoded.id;
+  if (rawId == null || rawId === '') {
+    const err = new Error('Invalid or expired refresh token');
+    err.status = 401;
+    throw err;
+  }
+  const adminUserId = String(rawId);
+
   const tokenHash = hashRefreshToken(refreshToken);
   const stored = await prisma.refreshToken.findFirst({
-    where: { adminUserId: decoded.sub, tokenHash },
+    where: { adminUserId, tokenHash },
     include: { adminUser: true },
   });
 

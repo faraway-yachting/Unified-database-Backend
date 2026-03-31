@@ -11,9 +11,11 @@ import pricingRouter from './pricing.js';
 import crmRouter from './crm.js';
 import settingsRouter from './settings.js';
 import tagsRouter from './tags.js';
+import publicRouter from './public.js';
 
 const router = express.Router();
 
+router.use('/public', publicRouter);
 router.use('/auth', authRouter);
 router.use('/dashboard', dashboardRouter);
 router.use('/upload', uploadRouter);

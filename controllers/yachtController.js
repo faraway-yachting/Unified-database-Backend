@@ -11,6 +11,8 @@ export async function listYachts(req, res, next) {
     const {
       regionId,
       type,
+      charterType,
+      tags,
       status,
       minCapacity,
       maxCapacity,
@@ -25,6 +27,8 @@ export async function listYachts(req, res, next) {
     const result = await yachtService.listYachts({
       regionId,
       type,
+      charterType,
+      tags,
       status,
       minCapacity,
       maxCapacity,

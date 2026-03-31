@@ -85,7 +85,7 @@ export async function uploadYachtImages(yachtId, files, options = {}) {
   // Upload files and create image records
   const uploadedImages = [];
   for (const file of files) {
-    const s3Key = generateS3Key(file.originalname, `yachts/${yachtId}/images`);
+    const s3Key = generateS3Key(file.originalname, `yachts/Gallery-Images/${yachtId}`);
     
     // Upload to S3
     const s3Result = await uploadFile(file.buffer, s3Key, file.mimetype, {
@@ -262,9 +262,9 @@ export async function deleteYachtImage(yachtId, imageId) {
       }
     } catch (e) {
       // If URL parsing fails, try to extract from pathname
-      const match = imageUrl.match(/\/yachts\/[^/]+\/images\/(.+)$/);
+      const match = imageUrl.match(/\/yachts\/Gallery-Images\/[^/]+\/(.+)$/) || imageUrl.match(/\/yachts\/[^/]+\/images\/(.+)$/);
       if (match) {
-        s3Key = `yachts/${yachtId}/images/${match[1]}`;
+        s3Key = `yachts/Gallery-Images/${yachtId}/${match[1]}`;
       }
     }
   } else {

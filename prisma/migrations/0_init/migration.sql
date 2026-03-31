@@ -1,3 +1,6 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateTable
 CREATE TABLE "currencies" (
     "code" VARCHAR(10) NOT NULL,
@@ -48,24 +51,54 @@ CREATE TABLE "charter_companies" (
 -- CreateTable
 CREATE TABLE "yachts" (
     "id" UUID NOT NULL,
-    "company_id" UUID NOT NULL,
-    "name" VARCHAR(255) NOT NULL,
     "type" VARCHAR(50) NOT NULL,
-    "length_m" DECIMAL(6,2),
-    "beam_m" DECIMAL(6,2),
-    "capacity_guests" INTEGER NOT NULL,
-    "capacity_crew" INTEGER,
-    "year_built" INTEGER,
-    "engine_type" VARCHAR(100),
-    "engine_hp" INTEGER,
-    "cruise_speed_knots" DECIMAL(5,2),
-    "fuel_capacity_l" INTEGER,
-    "home_port" VARCHAR(255),
-    "region_id" UUID NOT NULL,
     "status" VARCHAR(30) NOT NULL DEFAULT 'available',
-    "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "beam_m" DECIMAL(6,2),
+    "capacity_crew" INTEGER,
+    "capacity_guests" INTEGER NOT NULL,
+    "company_id" UUID NOT NULL,
+    "cruise_speed_knots" DECIMAL(5,2),
+    "engine_hp" INTEGER,
+    "engine_type" VARCHAR(100),
+    "fuel_capacity_l" INTEGER,
+    "home_port" VARCHAR(255),
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "length_m" DECIMAL(6,2),
+    "name" VARCHAR(255) NOT NULL,
+    "region_id" UUID NOT NULL,
+    "year_built" INTEGER,
+    "badge" VARCHAR(100),
+    "bathrooms" VARCHAR(20),
+    "boat_type" VARCHAR(50),
+    "built" VARCHAR(100),
+    "cabins" VARCHAR(20),
+    "capacity" VARCHAR(100),
+    "charter_type" VARCHAR(50),
+    "code" VARCHAR(50),
+    "cruising_speed" VARCHAR(100),
+    "day_trip_price" VARCHAR(50),
+    "daytrip_price_euro" VARCHAR(50),
+    "design" VARCHAR(255),
+    "display_order" INTEGER,
+    "fuel_capacity" VARCHAR(100),
+    "guests" VARCHAR(20),
+    "guests_range" VARCHAR(20),
+    "length" VARCHAR(50),
+    "length_overall" VARCHAR(100),
+    "length_range" VARCHAR(50),
+    "overnight_price" VARCHAR(50),
+    "passenger_day_trip" VARCHAR(20),
+    "passenger_overnight" VARCHAR(20),
+    "price" VARCHAR(50),
+    "primary_image" VARCHAR(500),
+    "publication_status" VARCHAR(30),
+    "slug" VARCHAR(255),
+    "source_id" VARCHAR(24),
+    "title" VARCHAR(255),
+    "video_link" VARCHAR(500),
+    "water_capacity" VARCHAR(100),
 
     CONSTRAINT "yachts_pkey" PRIMARY KEY ("id")
 );
@@ -81,6 +114,35 @@ CREATE TABLE "yacht_images" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "yacht_images_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "yacht_tags" (
+    "id" UUID NOT NULL,
+    "yacht_id" UUID NOT NULL,
+    "locale" VARCHAR(10),
+    "tag" VARCHAR(100) NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "yacht_tags_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "yacht_translations" (
+    "id" UUID NOT NULL,
+    "yacht_id" UUID NOT NULL,
+    "locale" VARCHAR(10) NOT NULL,
+    "slug" VARCHAR(255),
+    "title" VARCHAR(255),
+    "day_charter" TEXT,
+    "overnight_charter" TEXT,
+    "about_this_boat" TEXT,
+    "specifications" TEXT,
+    "boat_layout" TEXT,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "yacht_translations_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -499,6 +561,21 @@ CREATE TABLE "audit_logs" (
 CREATE UNIQUE INDEX "regions_slug_key" ON "regions"("slug");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "yachts_slug_key" ON "yachts"("slug");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "yachts_source_id_key" ON "yachts"("source_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "yacht_tags_yacht_id_locale_tag_key" ON "yacht_tags"("yacht_id", "locale", "tag");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "yacht_translations_yacht_id_locale_key" ON "yacht_translations"("yacht_id", "locale");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "yacht_translations_locale_slug_key" ON "yacht_translations"("locale", "slug");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "promo_codes_code_key" ON "promo_codes"("code");
 
 -- CreateIndex
@@ -529,6 +606,12 @@ ALTER TABLE "yachts" ADD CONSTRAINT "yachts_region_id_fkey" FOREIGN KEY ("region
 ALTER TABLE "yacht_images" ADD CONSTRAINT "yacht_images_yacht_id_fkey" FOREIGN KEY ("yacht_id") REFERENCES "yachts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "yacht_tags" ADD CONSTRAINT "yacht_tags_yacht_id_fkey" FOREIGN KEY ("yacht_id") REFERENCES "yachts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "yacht_translations" ADD CONSTRAINT "yacht_translations_yacht_id_fkey" FOREIGN KEY ("yacht_id") REFERENCES "yachts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "yacht_amenities" ADD CONSTRAINT "yacht_amenities_yacht_id_fkey" FOREIGN KEY ("yacht_id") REFERENCES "yachts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -541,10 +624,10 @@ ALTER TABLE "yacht_maintenance" ADD CONSTRAINT "yacht_maintenance_yacht_id_fkey"
 ALTER TABLE "yacht_availability_blocks" ADD CONSTRAINT "yacht_availability_blocks_yacht_id_fkey" FOREIGN KEY ("yacht_id") REFERENCES "yachts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "packages" ADD CONSTRAINT "packages_yacht_id_fkey" FOREIGN KEY ("yacht_id") REFERENCES "yachts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "packages" ADD CONSTRAINT "packages_currency_code_fkey" FOREIGN KEY ("currency_code") REFERENCES "currencies"("code") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "packages" ADD CONSTRAINT "packages_currency_code_fkey" FOREIGN KEY ("currency_code") REFERENCES "currencies"("code") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "packages" ADD CONSTRAINT "packages_yacht_id_fkey" FOREIGN KEY ("yacht_id") REFERENCES "yachts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "package_region_visibility" ADD CONSTRAINT "package_region_visibility_package_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -589,31 +672,31 @@ ALTER TABLE "customers" ADD CONSTRAINT "customers_region_id_fkey" FOREIGN KEY ("
 ALTER TABLE "customer_tags" ADD CONSTRAINT "customer_tags_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "bookings" ADD CONSTRAINT "bookings_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookings" ADD CONSTRAINT "bookings_yacht_id_fkey" FOREIGN KEY ("yacht_id") REFERENCES "yachts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookings" ADD CONSTRAINT "bookings_package_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "bookings" ADD CONSTRAINT "bookings_region_id_fkey" FOREIGN KEY ("region_id") REFERENCES "regions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "bookings" ADD CONSTRAINT "bookings_agent_id_fkey" FOREIGN KEY ("agent_id") REFERENCES "agents"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "bookings" ADD CONSTRAINT "bookings_currency_code_fkey" FOREIGN KEY ("currency_code") REFERENCES "currencies"("code") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "bookings" ADD CONSTRAINT "bookings_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookings" ADD CONSTRAINT "bookings_package_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "bookings" ADD CONSTRAINT "bookings_promo_code_id_fkey" FOREIGN KEY ("promo_code_id") REFERENCES "promo_codes"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "booking_addons" ADD CONSTRAINT "booking_addons_booking_id_fkey" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "bookings" ADD CONSTRAINT "bookings_region_id_fkey" FOREIGN KEY ("region_id") REFERENCES "regions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "bookings" ADD CONSTRAINT "bookings_yacht_id_fkey" FOREIGN KEY ("yacht_id") REFERENCES "yachts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "booking_addons" ADD CONSTRAINT "booking_addons_addon_id_fkey" FOREIGN KEY ("addon_id") REFERENCES "package_addons"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "booking_addons" ADD CONSTRAINT "booking_addons_booking_id_fkey" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "payments" ADD CONSTRAINT "payments_booking_id_fkey" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -622,28 +705,28 @@ ALTER TABLE "payments" ADD CONSTRAINT "payments_booking_id_fkey" FOREIGN KEY ("b
 ALTER TABLE "payments" ADD CONSTRAINT "payments_currency_code_fkey" FOREIGN KEY ("currency_code") REFERENCES "currencies"("code") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "leads" ADD CONSTRAINT "leads_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "leads" ADD CONSTRAINT "leads_region_id_fkey" FOREIGN KEY ("region_id") REFERENCES "regions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "leads" ADD CONSTRAINT "leads_package_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "leads" ADD CONSTRAINT "leads_yacht_id_fkey" FOREIGN KEY ("yacht_id") REFERENCES "yachts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "leads" ADD CONSTRAINT "leads_assigned_to_fkey" FOREIGN KEY ("assigned_to") REFERENCES "admin_users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "leads" ADD CONSTRAINT "leads_converted_booking_id_fkey" FOREIGN KEY ("converted_booking_id") REFERENCES "bookings"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "communication_logs" ADD CONSTRAINT "communication_logs_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "leads" ADD CONSTRAINT "leads_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "leads" ADD CONSTRAINT "leads_package_id_fkey" FOREIGN KEY ("package_id") REFERENCES "packages"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "leads" ADD CONSTRAINT "leads_region_id_fkey" FOREIGN KEY ("region_id") REFERENCES "regions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "leads" ADD CONSTRAINT "leads_yacht_id_fkey" FOREIGN KEY ("yacht_id") REFERENCES "yachts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "communication_logs" ADD CONSTRAINT "communication_logs_admin_user_id_fkey" FOREIGN KEY ("admin_user_id") REFERENCES "admin_users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "communication_logs" ADD CONSTRAINT "communication_logs_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "customer_surveys" ADD CONSTRAINT "customer_surveys_booking_id_fkey" FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -659,3 +742,4 @@ ALTER TABLE "follow_up_sequence_steps" ADD CONSTRAINT "follow_up_sequence_steps_
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_admin_user_id_fkey" FOREIGN KEY ("admin_user_id") REFERENCES "admin_users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+

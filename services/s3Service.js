@@ -139,7 +139,9 @@ export function generateS3Key(filename, prefix = '') {
   const sanitized = baseName.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 50);
 
   const key = `${sanitized}_${timestamp}_${random}${ext}`;
-  return prefix ? `${prefix.replace(/\/$/, '')}/${key}` : key;
+  const envPrefix = process.env.NODE_ENV !== 'production' ? 'dev' : '';
+  const fullPrefix = envPrefix ? (prefix ? `${envPrefix}/${prefix}` : envPrefix) : prefix;
+  return fullPrefix ? `${fullPrefix.replace(/\/$/, '')}/${key}` : key;
 }
 
 /**
