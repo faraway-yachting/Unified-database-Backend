@@ -44,6 +44,7 @@ model Region {
   customers               Customer[]
   leads                   Lead[]
   packageRegionVisibility PackageRegionVisibility[]
+  yachtWebsiteVisibility  YachtWebsiteVisibility[]
   pricingRules            PricingRule[]
   promoCodes              PromoCode[]
   currency                Currency                  @relation(fields: [currencyCode], references: [code])
@@ -117,18 +118,19 @@ model Yacht {
   title              String?                  @db.VarChar(255)
   videoLink          String?                  @map("video_link") @db.VarChar(500)
   waterCapacity      String?                  @map("water_capacity") @db.VarChar(100)
-  bookings           Booking[]
-  leads              Lead[]
-  packages           Package[]
-  amenities          YachtAmenity[]
-  availabilityBlocks YachtAvailabilityBlock[]
-  documents          YachtDocument[]
-  images             YachtImage[]
-  maintenance        YachtMaintenance[]
-  tags               YachtTag[]
-  translations       YachtTranslation[]
-  company            CharterCompany           @relation(fields: [companyId], references: [id])
-  region             Region                   @relation(fields: [regionId], references: [id])
+  bookings               Booking[]
+  leads                  Lead[]
+  packages               Package[]
+  amenities              YachtAmenity[]
+  availabilityBlocks     YachtAvailabilityBlock[]
+  documents              YachtDocument[]
+  images                 YachtImage[]
+  maintenance            YachtMaintenance[]
+  tags                   YachtTag[]
+  translations           YachtTranslation[]
+  websiteVisibility      YachtWebsiteVisibility[]
+  company                CharterCompany           @relation(fields: [companyId], references: [id])
+  region                 Region                   @relation(fields: [regionId], references: [id])
 
   @@map("yachts")
 }
@@ -274,6 +276,19 @@ model PackageRegionVisibility {
   region    Region  @relation(fields: [regionId], references: [id], onDelete: Cascade)
 
   @@map("package_region_visibility")
+}
+
+model YachtWebsiteVisibility {
+  id        String  @id @default(uuid()) @db.Uuid
+  yachtId   String  @map("yacht_id") @db.Uuid
+  regionId  String  @map("region_id") @db.Uuid
+  isVisible Boolean @default(true) @map("is_visible")
+  sortOrder Int     @default(0) @map("sort_order")
+  yacht     Yacht   @relation(fields: [yachtId], references: [id], onDelete: Cascade)
+  region    Region  @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@unique([yachtId, regionId])
+  @@map("yacht_website_visibility")
 }
 
 model PackageIncludedService {

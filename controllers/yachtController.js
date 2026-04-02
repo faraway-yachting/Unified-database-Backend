@@ -129,23 +129,20 @@ export async function updateYacht(req, res, next) {
 
 /**
  * DELETE /api/yachts/:id
- * Soft delete a yacht (sets isActive=false and status=retired).
+ * Permanently delete a yacht and all its S3 images.
  */
 export async function softDeleteYacht(req, res, next) {
   try {
     const { id } = req.params;
-    const yacht = await yachtService.softDeleteYacht(id);
+    const result = await yachtService.deleteYacht(id);
     logAudit(req, {
       action: 'deleted',
       module: 'yachts',
       entityType: 'Yacht',
       entityId: id,
-      description: `Deleted yacht ${yacht.name}`,
+      description: `Deleted yacht ${result.name}`,
     }).catch(() => {});
-    res.status(200).json({
-      message: 'Yacht soft deleted successfully',
-      yacht,
-    });
+    res.status(200).json({ message: 'Yacht deleted successfully' });
   } catch (err) {
     next(err);
   }

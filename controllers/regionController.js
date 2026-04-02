@@ -51,7 +51,7 @@ export async function getRegionById(req, res, next) {
 /**
  * POST /api/regions
  * Create a new region.
- * Body: { name, slug?, siteUrl?, country, currencyCode, languageCode?, contactEmail?, contactPhone?, metaTitle?, metaDescription?, heroImageUrl?, status? }
+ * Body: { name, slug?, siteUrl?, country, currencyCode?, languageCode?, contactEmail?, contactPhone?, metaTitle?, metaDescription?, heroImageUrl?, status? }
  */
 export async function createRegion(req, res, next) {
   try {

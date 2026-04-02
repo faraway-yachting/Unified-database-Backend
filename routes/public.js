@@ -138,11 +138,13 @@ router.get('/yachts', async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 9;
     const locale = req.query.locale || 'en';
-    const { charterType } = req.query;
+    const { charterType, regionSlug } = req.query;
 
     const result = await listYachts({
       isActive: true,
+      excludeStatuses: ['retired'],
       charterType,
+      regionSlug,
       page,
       limit,
       includeImages: true,
@@ -186,6 +188,12 @@ router.get('/yachts/:slug', async (req, res, next) => {
       includeTags: true,
       includeTranslations: true,
     });
+
+    if (!yacht.isActive || yacht.status === 'retired') {
+      const err = new Error('Yacht not found');
+      err.status = 404;
+      throw err;
+    }
 
     res.json(await mapYacht(yacht, locale));
   } catch (err) {

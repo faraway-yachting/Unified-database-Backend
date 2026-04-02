@@ -6,6 +6,7 @@ import * as yachtAmenityController from '../controllers/yachtAmenityController.j
 import * as yachtDocumentController from '../controllers/yachtDocumentController.js';
 import * as yachtMaintenanceController from '../controllers/yachtMaintenanceController.js';
 import * as yachtAvailabilityController from '../controllers/yachtAvailabilityController.js';
+import * as yachtWebsiteVisibilityController from '../controllers/yachtWebsiteVisibilityController.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -45,6 +46,11 @@ router.get('/:id/availability/check', requireAuth, yachtAvailabilityController.c
 router.post('/:id/availability/block', requireAuth, yachtAvailabilityController.addBlock);
 router.get('/:id/availability', requireAuth, yachtAvailabilityController.getAvailability);
 router.delete('/:id/availability/:blockId', requireAuth, yachtAvailabilityController.removeBlock);
+
+// Website visibility routes
+router.get('/:id/website-visibility', requireAuth, yachtWebsiteVisibilityController.getVisibility);
+router.put('/:id/website-visibility', requireAuth, yachtWebsiteVisibilityController.setVisibility);
+router.delete('/:id/website-visibility/:regionId', requireAuth, yachtWebsiteVisibilityController.removeVisibility);
 
 // Detail route (must be before /:id)
 router.get('/:id/detail', requireAuth, yachtController.getYachtDetail);

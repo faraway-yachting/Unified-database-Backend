@@ -71,6 +71,7 @@ async function attachPresignedUrlsToYachts(yachts) {
 export async function listYachts(options = {}) {
   const {
     regionId,
+    regionSlug,
     type,
     charterType,
     tags,
@@ -85,19 +86,32 @@ export async function listYachts(options = {}) {
     includeImages = false,
     includeTags = true,
     includeTranslations = true,
+    excludeStatuses,
   } = options;
 
   const skip = (page - 1) * limit;
   const where = {};
 
   if (regionId) where.regionId = regionId;
+  if (regionSlug) {
+    where.websiteVisibility = {
+      some: {
+        isVisible: true,
+        region: { slug: regionSlug },
+      },
+    };
+  }
   if (type) where.type = type;
   if (charterType) where.charterType = charterType;
   if (tags) {
     const tagList = Array.isArray(tags) ? tags : [tags];
     where.tags = { some: { tag: { in: tagList } } };
   }
-  if (status) where.status = status;
+  if (status) {
+    where.status = status;
+  } else if (excludeStatuses?.length) {
+    where.status = { notIn: excludeStatuses };
+  }
   if (isActive !== undefined) where.isActive = isActive === 'true' || isActive === true;
 
   // Capacity filtering
@@ -479,19 +493,46 @@ export async function updateYacht(id, data, files = {}) {
   if (fuel_capacity !== undefined) updateData.fuelCapacity = str(fuel_capacity) ?? null;
   if (water_capacity !== undefined) updateData.waterCapacity = str(water_capacity) ?? null;
   if (code !== undefined) updateData.code = str(code) ?? null;
-  if (display_order !== undefined) updateData.displayOrder = (display_order !== '' && display_order !== null) ? parseInt(display_order, 10) : null;
+  if (display_order !== undefined) {
+    const raw = display_order !== '' && display_order !== null ? parseInt(String(display_order), 10) : null;
+    updateData.displayOrder = raw !== null && Number.isFinite(raw) ? raw : null;
+  }
   if (primary_image !== undefined && typeof primary_image === 'string' && primary_image.startsWith('s3://')) {
     updateData.primaryImage = primary_image;
   }
-  if (lengthM !== undefined) updateData.lengthM = lengthM ? parseFloat(lengthM) : null;
-  if (beamM !== undefined) updateData.beamM = beamM ? parseFloat(beamM) : null;
-  if (capacityGuests !== undefined) updateData.capacityGuests = parseInt(capacityGuests, 10);
-  if (capacityCrew !== undefined) updateData.capacityCrew = capacityCrew ? parseInt(capacityCrew, 10) : null;
-  if (yearBuilt !== undefined) updateData.yearBuilt = yearBuilt ? parseInt(yearBuilt, 10) : null;
+  if (lengthM !== undefined) {
+    const raw = lengthM ? parseFloat(String(lengthM)) : null;
+    updateData.lengthM = raw !== null && Number.isFinite(raw) ? raw : null;
+  }
+  if (beamM !== undefined) {
+    const raw = beamM ? parseFloat(String(beamM)) : null;
+    updateData.beamM = raw !== null && Number.isFinite(raw) ? raw : null;
+  }
+  if (capacityGuests !== undefined) {
+    const raw = parseInt(String(capacityGuests), 10);
+    if (Number.isFinite(raw)) updateData.capacityGuests = raw;
+  }
+  if (capacityCrew !== undefined) {
+    const raw = capacityCrew ? parseInt(String(capacityCrew), 10) : null;
+    updateData.capacityCrew = raw !== null && Number.isFinite(raw) ? raw : null;
+  }
+  if (yearBuilt !== undefined) {
+    const raw = yearBuilt ? parseInt(String(yearBuilt), 10) : null;
+    updateData.yearBuilt = raw !== null && Number.isFinite(raw) ? raw : null;
+  }
   if (engineType !== undefined) updateData.engineType = engineType;
-  if (engineHp !== undefined) updateData.engineHp = engineHp ? parseInt(engineHp, 10) : null;
-  if (cruiseSpeedKnots !== undefined) updateData.cruiseSpeedKnots = cruiseSpeedKnots ? parseFloat(cruiseSpeedKnots) : null;
-  if (fuelCapacityL !== undefined) updateData.fuelCapacityL = fuelCapacityL ? parseInt(fuelCapacityL, 10) : null;
+  if (engineHp !== undefined) {
+    const raw = engineHp ? parseInt(String(engineHp), 10) : null;
+    updateData.engineHp = raw !== null && Number.isFinite(raw) ? raw : null;
+  }
+  if (cruiseSpeedKnots !== undefined) {
+    const raw = cruiseSpeedKnots ? parseFloat(String(cruiseSpeedKnots)) : null;
+    updateData.cruiseSpeedKnots = raw !== null && Number.isFinite(raw) ? raw : null;
+  }
+  if (fuelCapacityL !== undefined) {
+    const raw = fuelCapacityL ? parseInt(String(fuelCapacityL), 10) : null;
+    updateData.fuelCapacityL = raw !== null && Number.isFinite(raw) ? raw : null;
+  }
   if (homePort !== undefined) updateData.homePort = homePort;
   if (isActive !== undefined) updateData.isActive = isActive === 'true' || isActive === true;
 
@@ -527,31 +568,41 @@ export async function updateYacht(id, data, files = {}) {
 
   const hasTranslationData = [day_charter, overnight_charter, about_this_boat, specifications, boat_layout, title, slug].some(v => v !== undefined);
 
-  // Only update the main yacht record for the base locale (en), not for translations
+  Object.keys(updateData).forEach((k) => {
+    const v = updateData[k];
+    if (typeof v === 'number' && Number.isNaN(v)) {
+      delete updateData[k];
+    }
+  });
+
   const translationLocale = data.locale && data.locale !== '' ? data.locale : 'en';
   const isBaseLocale = translationLocale === 'en';
 
+  const includeBase = {
+    company: { select: { id: true, name: true, logoUrl: true } },
+    region: { select: { id: true, name: true, slug: true } },
+    translations: true,
+    tags: true,
+  };
+
   let yacht;
   if (isBaseLocale) {
-    yacht = await prisma.yacht.update({
-      where: { id },
-      data: updateData,
-      include: {
-        company: { select: { id: true, name: true, logoUrl: true } },
-        region: { select: { id: true, name: true, slug: true } },
-        translations: true,
-        tags: true,
-      },
-    });
+    if (Object.keys(updateData).length > 0) {
+      yacht = await prisma.yacht.update({
+        where: { id },
+        data: updateData,
+        include: includeBase,
+      });
+    } else {
+      yacht = await prisma.yacht.findUnique({
+        where: { id },
+        include: includeBase,
+      });
+    }
   } else {
     yacht = await prisma.yacht.findUnique({
       where: { id },
-      include: {
-        company: { select: { id: true, name: true, logoUrl: true } },
-        region: { select: { id: true, name: true, slug: true } },
-        translations: true,
-        tags: true,
-      },
+      include: includeBase,
     });
   }
 
@@ -638,13 +689,14 @@ export async function updateYacht(id, data, files = {}) {
 }
 
 /**
- * Soft delete a yacht (set isActive to false and status to retired).
+ * Permanently delete a yacht and all its S3 images.
  * @param {string} id - Yacht UUID
- * @returns {Promise<object>}
+ * @returns {Promise<{ id: string, name: string }>}
  */
-export async function softDeleteYacht(id) {
+export async function deleteYacht(id) {
   const yacht = await prisma.yacht.findUnique({
     where: { id },
+    include: { images: true },
   });
 
   if (!yacht) {
@@ -653,29 +705,35 @@ export async function softDeleteYacht(id) {
     throw err;
   }
 
-  const updatedYacht = await prisma.yacht.update({
-    where: { id },
-    data: {
-      isActive: false,
-      status: 'retired',
-    },
-    include: {
-      company: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      region: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-  });
+  // Delete all S3 images
+  if (yacht.images?.length) {
+    const { deleteFile: deleteS3File } = await import('./s3Service.js');
+    await Promise.allSettled(
+      yacht.images.map(async (image) => {
+        const url = image.imageUrl;
+        let s3Key = null;
+        if (url.startsWith('s3://')) {
+          const parts = url.replace('s3://', '').split('/');
+          if (parts.length > 1) s3Key = parts.slice(1).join('/');
+        } else if (url.includes('.s3.') || url.includes('s3.amazonaws.com')) {
+          try {
+            const u = new URL(url);
+            const pathParts = u.pathname.split('/').filter(Boolean);
+            s3Key = pathParts.length > 1 ? pathParts.slice(1).join('/') : pathParts[0] ?? null;
+          } catch {
+            const match = url.match(/\/yachts\/Gallery-Images\/[^/]+\/(.+)$/);
+            if (match) s3Key = `yachts/Gallery-Images/${id}/${match[1]}`;
+          }
+        }
+        if (s3Key) await deleteS3File(s3Key).catch(() => {});
+      })
+    );
+  }
 
-  return updatedYacht;
+  // Hard delete — cascade handles related records (images, amenities, docs, etc.)
+  await prisma.yacht.delete({ where: { id } });
+
+  return { id, name: yacht.name };
 }
 
 /**
@@ -702,9 +760,16 @@ export async function updateYachtStatus(id, status) {
     throw err;
   }
 
+  const data = { status };
+  if (status === 'retired') {
+    data.isActive = false;
+  } else if (yacht.status === 'retired') {
+    data.isActive = true;
+  }
+
   const updatedYacht = await prisma.yacht.update({
     where: { id },
-    data: { status },
+    data,
     include: {
       company: {
         select: {

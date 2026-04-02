@@ -14,6 +14,29 @@ function generateSlug(text) {
     .replace(/^-+|-+$/g, '');
 }
 
+async function resolveRegionCurrencyCode(requested) {
+  const trimmed = requested != null && String(requested).trim() !== '' ? String(requested).trim() : null;
+  if (trimmed) {
+    const currency = await prisma.currency.findUnique({ where: { code: trimmed } });
+    if (!currency) {
+      const err = new Error(`Currency with code "${trimmed}" not found`);
+      err.status = 400;
+      throw err;
+    }
+    return trimmed;
+  }
+  const fallback = process.env.DEFAULT_REGION_CURRENCY || 'USD';
+  let currency = await prisma.currency.findUnique({ where: { code: fallback } });
+  if (currency) return fallback;
+  currency = await prisma.currency.findFirst({ orderBy: { code: 'asc' } });
+  if (!currency) {
+    const err = new Error('No currencies configured in database');
+    err.status = 500;
+    throw err;
+  }
+  return currency.code;
+}
+
 /**
  * List all regions with optional filtering and pagination.
  * @param {object} options - { status, page, limit, includeCurrency }
@@ -35,6 +58,12 @@ export async function listRegions(options = {}) {
       where,
       include: {
         currency: includeCurrency,
+        _count: {
+          select: {
+            yachts: true,
+            packageRegionVisibility: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -125,17 +154,16 @@ export async function createRegion(data) {
     status = 'draft',
   } = data;
 
-  // Validate required fields
-  if (!name || !country || !currencyCode) {
-    const err = new Error('Name, country, and currencyCode are required');
+  if (!name || !country) {
+    const err = new Error('Name and country are required');
     err.status = 400;
     throw err;
   }
 
-  // Generate slug if not provided
+  const finalCurrencyCode = await resolveRegionCurrencyCode(currencyCode);
+
   const finalSlug = slug || generateSlug(name);
 
-  // Check if slug already exists
   const existingSlug = await prisma.region.findUnique({
     where: { slug: finalSlug },
   });
@@ -143,17 +171,6 @@ export async function createRegion(data) {
   if (existingSlug) {
     const err = new Error(`Region with slug "${finalSlug}" already exists`);
     err.status = 409;
-    throw err;
-  }
-
-  // Verify currency exists
-  const currency = await prisma.currency.findUnique({
-    where: { code: currencyCode },
-  });
-
-  if (!currency) {
-    const err = new Error(`Currency with code "${currencyCode}" not found`);
-    err.status = 400;
     throw err;
   }
 
@@ -170,7 +187,7 @@ export async function createRegion(data) {
       slug: finalSlug,
       siteUrl,
       country,
-      currencyCode,
+      currencyCode: finalCurrencyCode,
       languageCode,
       contactEmail,
       contactPhone,
