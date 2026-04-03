@@ -715,20 +715,7 @@ export async function deleteYacht(id) {
     const { deleteFile: deleteS3File } = await import('./s3Service.js');
     await Promise.allSettled(
       urlsToDelete.map(async (url) => {
-        let s3Key = null;
-        if (url.startsWith('s3://')) {
-          const parts = url.replace('s3://', '').split('/');
-          if (parts.length > 1) s3Key = parts.slice(1).join('/');
-        } else if (url.includes('.s3.') || url.includes('s3.amazonaws.com')) {
-          try {
-            const u = new URL(url);
-            const pathParts = u.pathname.split('/').filter(Boolean);
-            s3Key = pathParts.length > 1 ? pathParts.slice(1).join('/') : pathParts[0] ?? null;
-          } catch {
-            const match = url.match(/\/yachts\/Gallery-Images\/[^/]+\/(.+)$/);
-            if (match) s3Key = `yachts/Gallery-Images/${id}/${match[1]}`;
-          }
-        }
+        let s3Key = extractS3KeyFromUrl(url);
         if (s3Key) await deleteS3File(s3Key).catch(() => {});
       })
     );
