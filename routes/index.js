@@ -11,6 +11,7 @@ import pricingRouter from './pricing.js';
 import crmRouter from './crm.js';
 import settingsRouter from './settings.js';
 import tagsRouter from './tags.js';
+import blogRouter from './blog.js';
 import publicRouter from './public.js';
 
 const router = express.Router();
@@ -28,6 +29,7 @@ router.use('/pricing', pricingRouter);
 router.use('/crm', crmRouter);
 router.use('/settings', settingsRouter);
 router.use('/tags', tagsRouter);
+router.use('/blog', blogRouter);
 
 // Example route
 router.get('/', (req, res) => {

@@ -62,6 +62,7 @@ export async function listRegions(options = {}) {
           select: {
             yachts: true,
             packageRegionVisibility: true,
+            blogVisibility: true,
           },
         },
       },

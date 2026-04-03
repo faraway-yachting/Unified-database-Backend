@@ -49,6 +49,7 @@ model Region {
   promoCodes              PromoCode[]
   currency                Currency                  @relation(fields: [currencyCode], references: [code])
   yachts                  Yacht[]
+  blogVisibility          BlogRegionVisibility[]
 
   @@map("regions")
 }
@@ -646,4 +647,49 @@ model AuditLog {
   adminUser   AdminUser @relation(fields: [adminUserId], references: [id])
 
   @@map("audit_logs")
+}
+
+// ─── Blog ─────────────────────────────────────────────────────────────────────
+
+model Blog {
+  id               String                  @id @default(uuid()) @db.Uuid
+  slug             String                  @unique @db.VarChar(255)
+  title            String?                 @db.VarChar(255)
+  shortDescription String?                 @map("short_description")
+  detailedDescription String?              @map("detailed_description")
+  primaryImage     String?                 @map("primary_image") @db.VarChar(500)
+  primaryImageKey  String?                 @map("primary_image_key") @db.VarChar(500)
+  status           String                  @default("draft") @db.VarChar(20)
+  createdAt        DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  translations     BlogTranslation[]
+  regionVisibility BlogRegionVisibility[]
+
+  @@map("blogs")
+}
+
+model BlogRegionVisibility {
+  id        String  @id @default(uuid()) @db.Uuid
+  blogId    String  @map("blog_id") @db.Uuid
+  regionId  String  @map("region_id") @db.Uuid
+  blog      Blog    @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  region    Region  @relation(fields: [regionId], references: [id], onDelete: Cascade)
+
+  @@unique([blogId, regionId])
+  @@map("blog_region_visibility")
+}
+
+model BlogTranslation {
+  id                  String   @id @default(uuid()) @db.Uuid
+  blogId              String   @map("blog_id") @db.Uuid
+  locale              String   @db.VarChar(10)
+  title               String?  @db.VarChar(255)
+  shortDescription    String?  @map("short_description")
+  detailedDescription String?  @map("detailed_description")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  blog                Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  @@unique([blogId, locale])
+  @@map("blog_translations")
 }
