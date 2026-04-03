@@ -85,7 +85,8 @@ export async function uploadYachtImages(yachtId, files, options = {}) {
   // Upload files and create image records
   const uploadedImages = [];
   for (const file of files) {
-    const s3Key = generateS3Key(file.originalname, `yachts/Gallery-Images/${yachtId}`);
+    const folderName = (yacht.slug || yachtId).replace(/[^a-zA-Z0-9-_]/g, '-').replace(/-+/g, '-').toLowerCase();
+    const s3Key = generateS3Key(file.originalname, `yachts/Gallery-Images/${folderName}`);
     
     // Upload to S3
     const s3Result = await uploadFile(file.buffer, s3Key, file.mimetype, {
