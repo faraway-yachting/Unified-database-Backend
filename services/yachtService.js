@@ -705,12 +705,16 @@ export async function deleteYacht(id) {
     throw err;
   }
 
-  // Delete all S3 images
-  if (yacht.images?.length) {
+  // Delete all S3 images (gallery + primary)
+  const urlsToDelete = [
+    ...(yacht.images?.map((img) => img.imageUrl) ?? []),
+    ...(yacht.primaryImage ? [yacht.primaryImage] : []),
+  ];
+
+  if (urlsToDelete.length) {
     const { deleteFile: deleteS3File } = await import('./s3Service.js');
     await Promise.allSettled(
-      yacht.images.map(async (image) => {
-        const url = image.imageUrl;
+      urlsToDelete.map(async (url) => {
         let s3Key = null;
         if (url.startsWith('s3://')) {
           const parts = url.replace('s3://', '').split('/');
