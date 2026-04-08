@@ -4,12 +4,13 @@ import { logAudit } from '../utils/audit.js';
 /**
  * GET /api/yachts
  * List all yachts with optional filtering and pagination.
- * Query params: regionId, type, status, minCapacity, maxCapacity, isActive, page, limit, includeCompany, includeRegion, includeImages
+ * Query params: regionId, regionSlug, type, status, minCapacity, maxCapacity, isActive, page, limit, includeCompany, includeRegion, includeImages
  */
 export async function listYachts(req, res, next) {
   try {
     const {
       regionId,
+      regionSlug,
       type,
       charterType,
       tags,
@@ -26,6 +27,7 @@ export async function listYachts(req, res, next) {
 
     const result = await yachtService.listYachts({
       regionId,
+      regionSlug,
       type,
       charterType,
       tags,

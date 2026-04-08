@@ -59,6 +59,7 @@ export async function listBlogs(options = {}) {
     limit = 12,
     status,
     regionId,
+    regionSlug,
     includeTranslations = false,
   } = options;
 
@@ -68,6 +69,8 @@ export async function listBlogs(options = {}) {
   if (status) where.status = status;
   if (regionId) {
     where.regionVisibility = { some: { regionId } };
+  } else if (regionSlug) {
+    where.regionVisibility = { some: { region: { slug: regionSlug } } };
   }
 
   const include = {

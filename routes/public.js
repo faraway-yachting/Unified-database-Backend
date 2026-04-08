@@ -1,5 +1,6 @@
 import express from 'express';
 import { listYachts, getYachtById } from '../services/yachtService.js';
+import { listBlogs, getBlogById } from '../services/blogService.js';
 import { getPresignedUrl, s3Config } from '../services/s3Service.js';
 
 const router = express.Router();
@@ -125,6 +126,20 @@ async function mapYacht(yacht, locale = 'en') {
       const result = localeTags.length > 0 ? localeTags : allTags.filter((t) => t.locale === 'en');
       return result.map((t) => t.tag);
     })(),
+    slugs: (() => {
+      // Reverse LOCALE_MAP so db locale keys map back to frontend locale codes
+      const REVERSE_LOCALE_MAP = { zh: 'cn' };
+      const map = {};
+      for (const tr of yacht.translations || []) {
+        if (tr.slug) {
+          const frontendLocale = REVERSE_LOCALE_MAP[tr.locale] || tr.locale;
+          map[frontendLocale] = tr.slug;
+        }
+      }
+      // Fallback: en slug from the yacht itself if no en translation slug
+      if (!map['en'] && yacht.slug) map['en'] = yacht.slug;
+      return map;
+    })(),
   };
 }
 
@@ -196,6 +211,62 @@ router.get('/yachts/:slug', async (req, res, next) => {
     }
 
     res.json(await mapYacht(yacht, locale));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/public/blogs
+ * Public blog listing — no auth required.
+ * Query params: page, limit, regionSlug, status
+ */
+router.get('/blogs', async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 9;
+    const { regionSlug, status } = req.query;
+
+    const result = await listBlogs({
+      regionSlug,
+      status: status || 'published',
+      page,
+      limit,
+      includeTranslations: true,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        blogs: result.blogs,
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/public/blogs/:slug
+ * Public single blog by slug — no auth required.
+ * Query params: regionSlug
+ */
+router.get('/blogs/:slug', async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+    const blog = await getBlogById(slug, { includeTranslations: true });
+
+    if (blog.status !== 'published') {
+      const err = new Error('Blog not found');
+      err.status = 404;
+      throw err;
+    }
+
+    res.json({ success: true, data: blog });
   } catch (err) {
     next(err);
   }

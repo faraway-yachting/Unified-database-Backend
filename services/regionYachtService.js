@@ -1,4 +1,26 @@
 import { prisma } from '../config/database.js';
+import { s3Config } from './s3Service.js';
+
+function extractS3KeyFromUrl(url) {
+  if (!url) return null;
+  if (url.startsWith('s3://')) {
+    const parts = url.replace('s3://', '').split('/');
+    return parts.length > 1 ? parts.slice(1).join('/') : null;
+  }
+  return null;
+}
+
+function resolveImageUrl(url) {
+  if (!url) return url;
+  if (url.startsWith('https://') || url.startsWith('http://')) return url;
+  if (url.startsWith('s3://')) {
+    const key = extractS3KeyFromUrl(url);
+    if (!key) return url;
+    if (s3Config.publicUrl) return `${s3Config.publicUrl.replace(/\/$/, '')}/${key}`;
+    if (s3Config.bucket) return `https://${s3Config.bucket}.s3.${s3Config.region || 'us-east-1'}.amazonaws.com/${key}`;
+  }
+  return url;
+}
 
 /**
  * Get all yachts assigned to a region.
@@ -52,7 +74,7 @@ export async function getRegionYachts(regionId, options = {}) {
         },
         images: {
           take: 1,
-          orderBy: { sortOrder: 'asc' },
+          orderBy: [{ isCover: 'desc' }, { sortOrder: 'asc' }],
         },
       },
       orderBy: {
@@ -64,8 +86,14 @@ export async function getRegionYachts(regionId, options = {}) {
     prisma.yacht.count({ where }),
   ]);
 
+  const resolvedYachts = yachts.map(y => ({
+    ...y,
+    primaryImage: resolveImageUrl(y.primaryImage),
+    images: y.images?.map(img => ({ ...img, imageUrl: resolveImageUrl(img.imageUrl) })),
+  }));
+
   return {
-    yachts,
+    yachts: resolvedYachts,
     total,
     page,
     limit,
