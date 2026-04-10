@@ -22,13 +22,12 @@ function extractS3KeyFromUrl(url) {
 
 function resolveImageUrl(url) {
   if (!url) return url;
-  if (url.startsWith('https://') || url.startsWith('http://')) return url;
-  if (url.startsWith('s3://')) {
+  const cdnBase = s3Config.publicUrl?.replace(/\/$/, '');
+  if (cdnBase) {
     const key = extractS3KeyFromUrl(url);
-    if (!key) return url;
-    if (s3Config.publicUrl) return `${s3Config.publicUrl.replace(/\/$/, '')}/${key}`;
-    if (s3Config.bucket) return `https://${s3Config.bucket}.s3.${s3Config.region || 'us-east-1'}.amazonaws.com/${key}`;
+    if (key) return `${cdnBase}/${key}`;
   }
+  if (url.startsWith('https://') || url.startsWith('http://')) return url;
   return url;
 }
 
@@ -157,6 +156,11 @@ export async function listYachts(options = {}) {
   }
   if (includeTranslations) {
     include.translations = {
+      select: {
+        locale: true,
+        slug: true,
+        title: true,
+      },
       orderBy: { locale: 'asc' },
     };
   }

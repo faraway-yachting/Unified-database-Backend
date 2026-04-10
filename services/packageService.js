@@ -1,6 +1,6 @@
 import { prisma } from '../config/database.js';
 import * as packageMediaService from './packageMediaService.js';
-import { getPresignedUrl, s3Config } from './s3Service.js';
+import { getPresignedUrl, toCdnUrl } from './s3Service.js';
 
 const VALID_DURATION_TYPES = ['half_day', 'full_day', 'weekly', 'custom'];
 const VALID_STATUSES = ['active', 'draft', 'archived'];
@@ -210,15 +210,17 @@ export async function getPackageById(id) {
     throw err;
   }
 
-  if (s3Config.bucket && pkg.media?.length) {
+  if (pkg.media?.length) {
     await Promise.all(
       pkg.media.map(async (m) => {
-        const key = extractS3KeyFromUrl(m.url, id);
-        if (!key) return;
-        try {
-          m.url = await getPresignedUrl(key);
-        } catch (_) {
-          // Keep original URL if signing fails
+        if (m.mediaType === 'brochure') {
+          const key = extractS3KeyFromUrl(m.url, id);
+          if (!key) return;
+          try {
+            m.url = await getPresignedUrl(key);
+          } catch (_) {}
+        } else {
+          m.url = toCdnUrl(m.url);
         }
       })
     );

@@ -8,7 +8,7 @@ export default {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   /** Base URL for public files (if bucket is public) or CDN URL */
-  publicUrl: process.env.AWS_S3_PUBLIC_URL || '',
+  publicUrl: process.env.AWS_CLOUDFRONT_URL || process.env.AWS_S3_PUBLIC_URL || '',
   /** Default ACL for uploaded files: 'private' | 'public-read' | 'authenticated-read' */
   defaultAcl: process.env.AWS_S3_DEFAULT_ACL || 'private',
   /** Max file size in bytes (default: 10MB) */

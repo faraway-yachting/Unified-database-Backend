@@ -1,5 +1,5 @@
 import { prisma } from '../config/database.js';
-import { uploadFile, generateS3Key, validateFile, deleteFile as deleteS3File, getPresignedUrl, s3Config } from './s3Service.js';
+import { uploadFile, generateS3Key, validateFile, deleteFile as deleteS3File, getPresignedUrl, toCdnUrl, s3Config } from './s3Service.js';
 
 const VALID_MEDIA_TYPES = ['image', 'video', 'brochure'];
 
@@ -36,15 +36,17 @@ export async function getMedia(packageId) {
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   });
 
-  if (s3Config.bucket && media.length) {
+  if (media.length) {
     await Promise.all(
       media.map(async (m) => {
-        const key = extractS3KeyFromUrl(m.url, packageId);
-        if (!key) return;
-        try {
-          m.url = await getPresignedUrl(key);
-        } catch (_) {
-          // Keep original URL if signing fails
+        if (m.mediaType === 'brochure') {
+          const key = extractS3KeyFromUrl(m.url, packageId);
+          if (!key) return;
+          try {
+            m.url = await getPresignedUrl(key);
+          } catch (_) {}
+        } else {
+          m.url = toCdnUrl(m.url);
         }
       })
     );
@@ -134,19 +136,20 @@ export async function uploadMedia(packageId, files, options = {}) {
     uploaded.push(media);
   }
 
-  if (s3Config.bucket) {
-    await Promise.all(
-      uploaded.map(async (m) => {
+  // Brochures stay presigned (private); images and videos get CDN URLs
+  await Promise.all(
+    uploaded.map(async (m) => {
+      if (m.mediaType === 'brochure') {
         const key = extractS3KeyFromUrl(m.url, packageId);
         if (!key) return;
         try {
           m.url = await getPresignedUrl(key);
-        } catch (_) {
-          // Keep original URL if signing fails
-        }
-      })
-    );
-  }
+        } catch (_) {}
+      } else {
+        m.url = toCdnUrl(m.url);
+      }
+    })
+  );
 
   return uploaded;
 }

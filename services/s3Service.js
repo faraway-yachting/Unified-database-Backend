@@ -160,4 +160,40 @@ export function validateFile(fileSize, mimeType) {
   }
 }
 
+/**
+ * Convert any S3 URL format to a CDN URL.
+ * Handles: s3://bucket/key, https://bucket.s3.region.amazonaws.com/key, or an existing CDN URL.
+ * Returns the original URL unchanged if CDN is not configured or the URL is unrecognised.
+ * Use this for images and videos — NOT for private documents (use getPresignedUrl for those).
+ * @param {string} url
+ * @returns {string}
+ */
+export function toCdnUrl(url) {
+  if (!url || !s3Config.publicUrl) return url;
+
+  const cdnBase = s3Config.publicUrl.replace(/\/$/, '');
+
+  // Already a CDN URL — return as-is
+  if (url.startsWith(cdnBase)) return url;
+
+  let key = null;
+
+  if (url.startsWith('s3://')) {
+    const parts = url.replace('s3://', '').split('/');
+    if (parts.length > 1) key = parts.slice(1).join('/');
+  } else if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const u = new URL(url);
+      if (u.hostname.includes('.amazonaws.com')) {
+        const pathParts = u.pathname.split('/').filter(Boolean);
+        key = s3Config.bucket && pathParts[0] === s3Config.bucket
+          ? pathParts.slice(1).join('/')
+          : pathParts.join('/');
+      }
+    } catch (_) {}
+  }
+
+  return key ? `${cdnBase}/${key}` : url;
+}
+
 export { s3Client, s3Config };

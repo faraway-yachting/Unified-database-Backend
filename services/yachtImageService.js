@@ -1,5 +1,5 @@
 import { prisma } from '../config/database.js';
-import { uploadFile, generateS3Key, validateFile, deleteFile as deleteS3File, getPresignedUrl, s3Config } from './s3Service.js';
+import { uploadFile, generateS3Key, validateFile, deleteFile as deleteS3File, toCdnUrl } from './s3Service.js';
 
 /**
  * Get all images for a yacht.
@@ -110,41 +110,14 @@ export async function uploadYachtImages(yachtId, files, options = {}) {
     uploadedImages.push(image);
   }
 
-  if (s3Config.bucket) {
-    await Promise.all(
-      uploadedImages.map(async (img) => {
-        const key = extractS3KeyFromUrl(img.imageUrl);
-        if (!key) return;
-        try {
-          img.imageUrl = await getPresignedUrl(key);
-        } catch (_) {
-          // Keep original URL if signing fails
-        }
-      })
-    );
+  // Ensure all returned image URLs are CDN URLs
+  for (const img of uploadedImages) {
+    img.imageUrl = toCdnUrl(img.imageUrl);
   }
 
   return uploadedImages;
 }
 
-function extractS3KeyFromUrl(url) {
-  if (!url) return null;
-  if (url.startsWith('s3://')) {
-    const parts = url.replace('s3://', '').split('/');
-    return parts.length > 1 ? parts.slice(1).join('/') : null;
-  }
-  try {
-    const u = new URL(url);
-    const pathParts = u.pathname.split('/').filter(Boolean);
-    if (pathParts.length === 0) return null;
-    if (s3Config.bucket && pathParts[0] === s3Config.bucket) {
-      return pathParts.slice(1).join('/');
-    }
-    return pathParts.join('/');
-  } catch (_) {
-    return null;
-  }
-}
 
 /**
  * Update a yacht image.

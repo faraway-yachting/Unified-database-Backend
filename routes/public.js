@@ -1,11 +1,9 @@
 import express from 'express';
 import { listYachts, getYachtById } from '../services/yachtService.js';
 import { listBlogs, getBlogById } from '../services/blogService.js';
-import { getPresignedUrl, s3Config } from '../services/s3Service.js';
+import { s3Config } from '../services/s3Service.js';
 
 const router = express.Router();
-
-const PRESIGNED_EXPIRY = 60 * 60 * 24; // 24 hours
 
 /**
  * Extract the S3 key from any image URL format:
@@ -46,18 +44,17 @@ function extractS3Key(url) {
 }
 
 /**
- * Resolve an image URL to a presigned URL if it's an S3 object,
+ * Resolve an image URL to a CDN URL if it's an S3 object,
  * otherwise return as-is.
  */
-async function resolveUrl(url) {
-  if (!url || !s3Config.bucket) return url;
-  const key = extractS3Key(url);
-  if (!key) return url;
-  try {
-    return await getPresignedUrl(key, PRESIGNED_EXPIRY);
-  } catch {
-    return url;
+function resolveUrl(url) {
+  if (!url) return url;
+  const cdnBase = process.env.AWS_CLOUDFRONT_URL?.replace(/\/$/, '');
+  if (cdnBase) {
+    const key = extractS3Key(url);
+    if (key) return `${cdnBase}/${key}`;
   }
+  return url;
 }
 
 // Map frontend locale codes to database locale codes
@@ -70,7 +67,7 @@ function dbLocale(locale) {
  * Map a Prisma Yacht object to the phuket-sailing frontend Yacht shape,
  * with all S3 image URLs replaced by 24-hour presigned URLs.
  */
-async function mapYacht(yacht, locale = 'en') {
+function mapYacht(yacht, locale = 'en') {
   const resolvedLocale = dbLocale(locale);
   const translation =
     yacht.translations?.find((t) => t.locale === resolvedLocale) ||
@@ -78,10 +75,8 @@ async function mapYacht(yacht, locale = 'en') {
     yacht.translations?.[0] ||
     {};
 
-  const primaryImage = await resolveUrl(yacht.primaryImage);
-  const galleryImages = await Promise.all(
-    (yacht.images || []).map((img) => resolveUrl(img.imageUrl))
-  );
+  const primaryImage = resolveUrl(yacht.primaryImage);
+  const galleryImages = (yacht.images || []).map((img) => resolveUrl(img.imageUrl));
 
   return {
     _id: yacht.id,
@@ -169,7 +164,7 @@ router.get('/yachts', async (req, res, next) => {
       includeTranslations: true,
     });
 
-    const yachts = await Promise.all(result.yachts.map((y) => mapYacht(y, locale)));
+    const yachts = result.yachts.map((y) => mapYacht(y, locale));
 
     res.json({
       success: true,
@@ -210,7 +205,7 @@ router.get('/yachts/:slug', async (req, res, next) => {
       throw err;
     }
 
-    res.json(await mapYacht(yacht, locale));
+    res.json(mapYacht(yacht, locale));
   } catch (err) {
     next(err);
   }
