@@ -49,7 +49,7 @@ function extractS3Key(url) {
  */
 function resolveUrl(url) {
   if (!url) return url;
-  const cdnBase = process.env.AWS_CLOUDFRONT_URL?.replace(/\/$/, '');
+  const cdnBase = s3Config.publicUrl?.replace(/\/$/, '');
   if (cdnBase) {
     const key = extractS3Key(url);
     if (key) return `${cdnBase}/${key}`;
